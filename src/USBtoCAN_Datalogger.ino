@@ -2,7 +2,7 @@
  * PT Motorsport AU - USB to CAN DL
  *
  * Original firmware developed by Tessa Shea https://github.com/MythicalSheep
- * while working with PT Motorsport AU.
+ * while working at PT Motorsport AU.
  *
  * Subsequent development and maintenance:
  * PT Motorsport AU
