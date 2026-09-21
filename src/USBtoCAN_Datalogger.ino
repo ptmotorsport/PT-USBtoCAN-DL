@@ -10,6 +10,8 @@
  * Copyright (c) 2025-2026 PT Motorsport AU
  */
 
+// Enable external 32.768kHz crystal for RTC accuracy
+#define RTC_CLOCK_SOURCE RTC_CLOCK_SOURCE_SUBCLK
 
 #include <Adafruit_NeoPixel.h>
 #include <Arduino_CAN.h>
@@ -17,6 +19,7 @@
 #include <SdFat.h>
 #include <RTC.h>
 #include <SPI.h>
+#include "cli.h"
 
 // NeoPixel variables
 int pwrLED = 0;
@@ -86,12 +89,19 @@ void setup() {
   filterState = EEPROM.read(filterIndex);
   fileCount = EEPROM.read(fileCountIndex) + 1;
   CANSpeed = EEPROM.read(CANSpeedIndex);
+  // Default to 1000 kbps (index 3) if EEPROM is uninitialized (0xFF)
+  if (CANSpeed > 3) {
+    CANSpeed = 3;  // 1000 kbps
+    EEPROM.update(CANSpeedIndex, CANSpeed);
+  }
   listState = EEPROM.read(listStateIndex);
   EEPROM.update(fileCountIndex, fileCount);
 
   // Start the 'real time' clock + Serial, CAN, & SD communication
   RTC.begin();
+  // Note: External crystal configuration is set via preprocessor define RTC_CLOCK_SOURCE
   Serial.begin(115200);
+  cli.begin();
   if(CAN.begin(CANSpeedArray[CANSpeed])){
     pixels.setPixelColor(errorLED, pixels.Color(0, 0, 0));
   } else{
@@ -145,121 +155,8 @@ void loop() {
     pixels.show();
   }
 
-  // Check for serial communication from VS
-  if(Serial.available()){
-    char input = Serial.read();
-    switch(input){
-      case 'C':
-        rxDelay = true;
-        savvyCAN = true;
-        pixels.setPixelColor(SDLED, pixels.Color(0, 0, 0));
-        break;
-      case 'k':
-        rxDelay = true;
-        fileCount = 1;
-        EEPROM.update(fileCountIndex, fileCount);
-        break;
-      case 'l':
-        rxDelay = true;
-        savvyCAN = false;
-        if(sd.begin(CHIP_SELECT, SD_SCK_MHZ(50))){
-          pixels.setPixelColor(SDLED, pixels.Color(0, neoPixelsBrightness, 0));
-        } else{
-          pixels.setPixelColor(SDLED, pixels.Color(neoPixelsBrightness, 0, 0));
-        }
-        Serial.print(EEPROM.read(CANSpeedIndex));
-        Serial.print(EEPROM.read(filterIndex));
-        Serial.print(EEPROM.read(listStateIndex));
-        Serial.print(">");
-        break;
-      case 'm':
-        rxDelay = true;
-        CANSpeed = 0;
-        updateCANSpeed();
-        break;
-      case 'n':
-        rxDelay = true;
-        CANSpeed = 1;
-        updateCANSpeed();
-        break;
-      case 'o':
-        rxDelay = true;
-        CANSpeed = 2;
-        updateCANSpeed();
-        break;
-      case 'p':
-        rxDelay = true;
-        CANSpeed = 3;
-        updateCANSpeed();
-        break;
-      case 'q':
-        rxDelay = true;
-        filterState = 1;
-        if(listState == 1){
-          setFilters();
-        } else{
-          clearFilters();
-        }
-        EEPROM.update(filterIndex, filterState);
-        break;
-      case 'r':
-        rxDelay = true;
-        filterState = 0;
-        clearFilters();
-        EEPROM.update(filterIndex, filterState);
-        break;
-      case 's':
-        rxDelay = true;
-        listState = 0;
-        clearFilters();
-        EEPROM.update(listStateIndex, listState);
-        break;
-      case 't':
-        rxDelay = true;
-        listState = 1;
-        setFilters();
-        EEPROM.update(listStateIndex, listState);
-        break;
-      case 'u':
-        rxDelay = true;
-        readList(whitelist);
-        if(listState == 1){
-          setFilters();
-        }
-        break;
-      case 'v':
-        rxDelay = true;
-        writeList(whitelist);
-        break;
-      case 'w':
-        rxDelay = true;
-        burnList(whitelist, whitelistIndex);
-        break;
-      case 'x':
-        rxDelay = true;
-        readList(blacklist);
-        break;
-      case 'y':
-        rxDelay = true;
-        writeList(blacklist);
-        break;
-      case 'z':
-        rxDelay = true;
-        burnList(blacklist, blacklistIndex);
-        break;
-      case '1':
-        rxDelay = true;
-        updateList(whitelist, whitelistIndex);
-        break;
-      case '2':
-        rxDelay = true;
-        updateList(blacklist, blacklistIndex);
-        break;
-      default:
-        falseInput = true;
-        break;
-    }
-  }
+  // Check for serial commands from CLI
+  cli.process();
 }
 
 void clearFilters(){
