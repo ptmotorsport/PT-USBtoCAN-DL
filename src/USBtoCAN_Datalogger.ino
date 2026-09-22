@@ -97,10 +97,72 @@ void setup() {
   listState = EEPROM.read(listStateIndex);
   EEPROM.update(fileCountIndex, fileCount);
 
-  // Start the 'real time' clock + Serial, CAN, & SD communication
-  RTC.begin();
-  // Note: External crystal configuration is set via preprocessor define RTC_CLOCK_SOURCE
+  // Initialize Serial early for diagnostics
   Serial.begin(115200);
+  delay(500);  // Give serial time to initialize
+
+  // CRITICAL: Initialize external 32.768kHz subclock oscillator BEFORE RTC.begin()
+  // According to RA4M1 hardware manual, need to:
+  // 1. Configure SOMCR while SOSC is stopped
+  // 2. Handle VBTCR1.BPWSWSTP if VBATT not used
+  // 3. Clear SOSCCR.SOSTP to enable SOSC
+  // 4. Wait stabilization time
+
+  Serial.println(F("\n=== SOSC (32.768kHz Crystal) Initialization ==="));
+
+  // System register base (RA4M1)
+  const uint32_t SYSTEM_BASE = 0x4001E000UL;
+  const uint32_t SOSCCR_OFFSET = 0x480;  // Subclock Control Register
+  const uint32_t SOMCR_OFFSET = 0x481;   // Subclock Mode Control Register
+  const uint32_t VBTCR1_OFFSET = 0x41F;  // VBATT Control Register 1
+
+  volatile uint8_t *sosccr = (volatile uint8_t *)(SYSTEM_BASE + SOSCCR_OFFSET);
+  volatile uint8_t *somcr = (volatile uint8_t *)(SYSTEM_BASE + SOMCR_OFFSET);
+  volatile uint8_t *vbtcr1 = (volatile uint8_t *)(SYSTEM_BASE + VBTCR1_OFFSET);
+
+  // Print initial SOSC status
+  Serial.print(F("Initial SOSCCR.SOSTP: "));
+  Serial.print((*sosccr & 0x01) ? F("STOPPED (1)") : F("RUNNING (0)"));
+  Serial.print(F(" [value=0x"));
+  Serial.print(*sosccr, HEX);
+  Serial.println(F("]"));
+
+  Serial.print(F("Initial SOMCR.SODRV: 0x"));
+  Serial.println((*somcr & 0x03), HEX);
+
+  Serial.print(F("Initial VBTCR1.BPWSWSTP: "));
+  Serial.println((*vbtcr1 & 0x01) ? F("STOPPING (1)") : F("OPERATING (0)"));
+
+  // Step 1: Configure SOMCR with appropriate drive strength while SOSC stopped
+  // SODRV[1:0]: 00=low, 01=medium-low, 10=medium-high, 11=high
+  // For 32.768kHz crystal with typical load, use medium-high (0x2)
+  *somcr = 0x02;  // SODRV = 10 (medium-high)
+  Serial.println(F("Configured SOMCR.SODRV = 0x02 (medium-high drive)"));
+
+  // Step 2: Handle VBTCR1 if VBATT not used
+  // Set BPWSWSTP to indicate power supply switch is stopping VBATT operation
+  *vbtcr1 = 0x00;  // BPWSWSTP = 0 (normal operation)
+  Serial.println(F("Set VBTCR1.BPWSWSTP = 0 (VBATT operating normally)"));
+
+  // Step 3: Clear SOSCCR.SOSTP to enable the subclock oscillator
+  *sosccr = 0x00;  // SOSTP = 0 (enable oscillator)
+
+  // Step 4: Read back to confirm the bit changed
+  uint8_t sostp_verify = (*sosccr & 0x01);
+  Serial.print(F("Verified SOSCCR.SOSTP after enable: "));
+  Serial.println(sostp_verify ? F("FAILED (still 1)") : F("SUCCESS (now 0)"));
+
+  // Step 5: Wait for subclock oscillator stabilization
+  // Typical stabilization time for 32.768kHz crystal is ~2.5 seconds
+  Serial.println(F("Waiting 2.5s for SOSC stabilization..."));
+  delay(2500);
+
+  Serial.println(F("SOSC initialization complete\n"));
+
+  // Start the 'real time' clock + Serial, CAN, & SD communication
+  // RTC.begin() will now use the configured SUBCLK source (if RTC.cpp has SUBCLK enabled)
+  RTC.begin();
+
   cli.begin();
   if(CAN.begin(CANSpeedArray[CANSpeed])){
     pixels.setPixelColor(errorLED, pixels.Color(0, 0, 0));
@@ -244,7 +306,7 @@ void burnList(char list[NUM_ROWS][NUM_COLS], int index){
       index++;
     }
     index = index + NUM_COLS;
-  } 
+  }
   updateList(list, originalIndex);
 }
 
@@ -283,7 +345,7 @@ bool checkBlacklist(CanMsg msg){
           match = false;
           break;
         }
-      } 
+      }
     } else {
       for(int j = 0; j < NUM_COLS; j++) {
         if(blacklist[i][j] != msgIdStr[j]) {
@@ -374,7 +436,7 @@ void recvWithStartEndMarkers() {
   char startMarker = '<';
   char endMarker = '>';
   char rc;
- 
+
   while (Serial.available() > 0 && newData == false) {
     rc = Serial.read();
     if (recvInProgress == true) {
