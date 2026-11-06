@@ -1,5 +1,49 @@
 #include "cli.h"
 #include <EEPROM.h>
+#include <SdFat.h>
+#include <SPI.h>
+#include <Arduino_CAN.h>
+#include "status_config.h"
+#include "bounded_console.h"
+#include "can_filter.h"
+#include "slcan_protocol.h"
+#include "slcan_bridge.h"
+#include "usb_connection.h"
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+namespace {
+
+class BoundedConsole : public Print {
+public:
+  using Print::write;
+  size_t write(uint8_t value) override { return output_.write(value); }
+  size_t write(const uint8_t *data, size_t length) override {
+    return output_.write(data, length);
+  }
+  explicit operator bool() { return usbSerialConnected(); }
+  int available() { return Serial.available(); }
+  int read() { return Serial.read(); }
+  void drain() {
+    if (usbSerialConnected()) output_.drain(Serial, 64);
+  }
+  bool pending() const { return !output_.empty(); }
+  void discard() { output_.clear(); }
+  uint32_t droppedBytes() const { return output_.droppedBytes(); }
+
+private:
+  BoundedConsoleBuffer output_;
+};
+
+BoundedConsole console;
+bool bridgeReturnReportPending = false;
+
+}
+
+#undef Serial
+#define Serial console
 
 // Global CLI handler instance
 CLIHandler cli;
@@ -16,24 +60,134 @@ extern int fileNum;
 
 extern const byte NUM_CHARS;
 extern char receivedChars[32];
-// Hard-coded since these are constants defined in .ino
-#define NUM_ROWS 5
-#define NUM_COLS 4
-extern char whitelist[5][4];
-extern char blacklist[5][4];
+extern FilterRule whitelistRules[5];
+extern FilterRule blacklistRules[5];
 
 // Function declarations
 extern void updateCANSpeed();
+extern void clearFilters();
+extern void enterBridgeMode();
+extern void stopLogging();
+extern void startLogging();
+extern bool loggingEnabled;
+extern uint32_t slcanDroppedFrames();
+extern void saveFilterRules(bool blacklist);
 
 // EEPROM indices
 extern const int filterIndex;
 extern const int fileCountIndex;
 extern const int CANSpeedIndex;
 extern const int listStateIndex;
-extern const int whitelistIndex;
-extern const int blacklistIndex;
 
 extern const int CHIP_SELECT;
+extern SdFat sd;
+extern uint32_t sdSpiClockMHz;
+extern bool sdStartupReady;
+extern unsigned long sdStartupMillis;
+extern unsigned long sdStartupDurationMillis;
+extern uint8_t sdStartupErrorCode;
+extern uint8_t sdStartupErrorData;
+extern const uint8_t SD_STARTUP_MAX_ATTEMPTS;
+extern const unsigned long SD_STARTUP_RETRY_DELAY_MS;
+extern uint8_t sdStartupAttempts;
+extern uint8_t sdFirstErrorCode;
+extern uint8_t sdFirstErrorData;
+extern bool sdReady;
+extern bool sdFaultLatched;
+extern uint32_t sdRuntimeAttempts;
+extern uint32_t sdDroppedMessages;
+extern uint32_t sdQueueOverflows;
+extern uint32_t sdQueueHighWater;
+extern uint32_t sdUnconfirmedMessages;
+extern uint32_t sdPendingMessages;
+extern uint32_t sdSyncedBytes;
+extern uint32_t sdLastSyncMicros;
+extern uint32_t sdMaxSyncMicros;
+extern uint8_t sdLastErrorCode;
+extern uint8_t sdLastErrorData;
+extern const char *sdLastFailure;
+extern int bufferIndex;
+extern bool canReady;
+extern bool canMessageReceived;
+extern unsigned long lastCANReceiveMillis;
+extern int vbattRaw;
+extern float vbattVolts;
+extern bool vbattValid;
+
+namespace {
+
+bool parseFilterNumber(const char *text, int base, unsigned long maximum,
+                       unsigned long &value) {
+  const char *digits = text;
+  if (base == 16 && digits[0] == '0' && (digits[1] == 'X' || digits[1] == 'x')) {
+    digits += 2;
+  }
+  if (*digits == '\0') return false;
+  for (const char *digit = digits; *digit; ++digit) {
+    if (*digit >= '0' && *digit <= '9') continue;
+    if (base == 16 && ((*digit >= 'A' && *digit <= 'F') ||
+                       (*digit >= 'a' && *digit <= 'f'))) continue;
+    return false;
+  }
+  errno = 0;
+  char *end = nullptr;
+  const unsigned long parsed = strtoul(text, &end, base);
+  if (errno == ERANGE || end == text || *end != '\0' || parsed > maximum) return false;
+  value = parsed;
+  return true;
+}
+
+void editFilterRule(const String &arguments, FilterRule (&rules)[5]) {
+  char action[161] = {};
+  char slotToken[161] = {};
+  char typeToken[161] = {};
+  char identifierToken[161] = {};
+  char extra[2] = {};
+  const int tokens = sscanf(arguments.c_str(), "%160s %160s %160s %160s %1s",
+                            action, slotToken, typeToken, identifierToken, extra);
+  const bool setting = strcmp(action, "SET") == 0;
+  const bool clearing = strcmp(action, "CLEAR") == 0;
+  unsigned long slot = 0;
+  if ((!setting && !clearing) || tokens != (setting ? 4 : 2) ||
+      !parseFilterNumber(slotToken, 10, 5, slot) || slot == 0) {
+    Serial.println("ERR: Use WL/BL SET <1..5> STD|EXT <hex-id> or WL/BL CLEAR <1..5>");
+    return;
+  }
+  if (clearing) {
+    rules[slot - 1] = FilterRule{};
+    Serial.println("OK: Rule cleared; effective immediately");
+    return;
+  }
+  const bool extended = strcmp(typeToken, "EXT") == 0;
+  unsigned long identifier = 0;
+  if ((!extended && strcmp(typeToken, "STD") != 0) ||
+      !parseFilterNumber(identifierToken, 16, extended ? 0x1FFFFFFFUL : 0x7FFUL, identifier)) {
+    Serial.println("ERR: STD ID must be 0..7FF; EXT ID must be 0..1FFFFFFF (hex)");
+    return;
+  }
+  FilterRule rule;
+  rule.identifier = static_cast<uint32_t>(identifier);
+  rule.extended = extended;
+  rule.active = true;
+  rules[slot - 1] = rule;
+  Serial.println("OK: Rule set; effective immediately (use SAVE to persist)");
+}
+
+void showFilterRules(const char *name, const FilterRule (&rules)[5]) {
+  Serial.println(name);
+  for (size_t slot = 0; slot < 5; ++slot) {
+    const FilterRule &rule = rules[slot];
+    char identifier[9];
+    snprintf(identifier, sizeof(identifier), rule.extended ? "%08lX" : "%03lX",
+             static_cast<unsigned long>(rule.identifier));
+    Serial.print(slot + 1);
+    Serial.print(rule.active ? " ACTIVE   " : " INACTIVE ");
+    Serial.print(rule.extended ? "EXT 0x" : "STD 0x");
+    Serial.println(identifier);
+  }
+}
+
+}
 
 // CAN speed array
 extern const int CANSpeedArray[4];
@@ -124,52 +278,30 @@ String CLIHandler::detectRTCClockSource() {
 CLIHandler::CLIHandler() {}
 
 void CLIHandler::begin() {
-  Serial.println();
-  Serial.println("============================================");
-  Serial.println("    PT Motorsport AU - USB to CAN DL");
-  Serial.println("============================================");
-  Serial.println("Type 'HELP' for available commands");
-  Serial.println();
 }
 
 String CLIHandler::readLine() {
   static String buffer = "";
-  static bool prompt_shown = false;
 
-  // Show prompt on first call
-  if (!prompt_shown) {
-    Serial.print("> ");
-    prompt_shown = true;
-  }
-
-  while (Serial.available()) {
-    char c = Serial.read();
+  for (size_t processed = 0; processed < 64 && Serial.available() > 0; ++processed) {
+    const int character = Serial.read();
+    if (character < 0) break;
+    const char c = static_cast<char>(character);
 
     // Handle backspace (both ASCII 8 and 127)
     if (c == '\b' || c == 127) {
       if (buffer.length() > 0) {
         buffer.remove(buffer.length() - 1);
-        // VT100 backspace sequence: move back, erase character, move back again
-        Serial.write('\b');
-        Serial.write(' ');
-        Serial.write('\b');
       }
       continue;
     }
 
     // Handle carriage return (line complete)
-    if (c == '\r') {
-      Serial.println(); // Echo newline
+    if (c == '\r' || c == '\n') {
       String line = buffer;
       buffer = "";
-      prompt_shown = false;
       line.trim();
       return line;
-    }
-
-    // Handle newline (alternative line terminator)
-    if (c == '\n') {
-      continue; // Skip LF, wait for CR
     }
 
     // Handle printable characters
@@ -177,10 +309,6 @@ String CLIHandler::readLine() {
       // Check max length (leave room for null terminator)
       if (buffer.length() < 160) {
         buffer += c;
-        Serial.write(c); // Echo the character
-      } else {
-        // Provide feedback if line is full
-        Serial.write('\a'); // Bell/beep
       }
       continue;
     }
@@ -192,16 +320,48 @@ String CLIHandler::readLine() {
 }
 
 void CLIHandler::process() {
+  const bool connected = static_cast<bool>(Serial);
+  if (savvyCAN) {
+    Serial.discard();
+    return;
+  }
+  Serial.drain();
+  if (!connected || Serial.pending()) return;
+  if (bridgeReturnReportPending) {
+    bridgeReturnReportPending = false;
+    Serial.print(F("\r\nReturned to CLI. SLCAN dropped frames: "));
+    Serial.println(slcanDroppedFrames());
+    Serial.drain();
+    return;
+  }
   String line = readLine();
-  if (line.length() == 0) return;
-
-  handleCommand(line);
+  if (Slcan::isConnectionCommand(line.c_str(), line.length())) {
+    Serial.discard();
+    bridgeReturnReportPending = true;
+    enterBridgeMode();
+    slcanInitialCommand(line.c_str(), line.length());
+    return;
+  }
+  if (line.length() != 0) handleCommand(line);
+  if (!savvyCAN) Serial.drain();
 }
 
 void CLIHandler::handleCommand(const String &line) {
   String cmd = line;
   cmd.toUpperCase();
   cmd.trim();
+
+  if (cmd == "LOG STOP") {
+    stopLogging();
+    Serial.println(sdReady ? F("OK: Logging stopped; queued rows drained and file closed") :
+        F("ERR: Logging stopped; SD fault, queued rows may remain in RAM"));
+    return;
+  }
+  if (cmd == "LOG START") {
+    startLogging();
+    Serial.println(F("OK: Logging enabled"));
+    return;
+  }
 
   // HELP
   if (cmd == "HELP") {
@@ -295,6 +455,14 @@ void CLIHandler::handleCommand(const String &line) {
     burnBlacklist();
     return;
   }
+  if (cmd == "WL" || cmd.startsWith("WL ")) {
+    editFilterRule(cmd.substring(2), whitelistRules);
+    return;
+  }
+  if (cmd == "BL" || cmd.startsWith("BL ")) {
+    editFilterRule(cmd.substring(2), blacklistRules);
+    return;
+  }
 
   // SAVVYCAN MODE
   if (cmd == "SAVVYCAN") {
@@ -310,7 +478,7 @@ void CLIHandler::handleCommand(const String &line) {
 
   // SD CARD STATUS
   if (cmd == "SD") {
-    Serial.println("OK: SD Card check requested (see main sketch)");
+    showSDDiag();
     return;
   }
 
@@ -342,27 +510,175 @@ void CLIHandler::showHelp() {
   Serial.println("  FILTERS OFF         - Disable CAN filtering");
   Serial.println("  WHITELIST ON        - Use whitelist mode");
   Serial.println("  WHITELIST OFF       - Disable whitelist mode");
+  Serial.println("  Filter flags and rule edits take effect immediately; no restart needed.");
   Serial.println();
 
   Serial.println("WHITELIST MANAGEMENT:");
-  Serial.println("  WL READ             - Read whitelist from UART");
-  Serial.println("  WL WRITE            - Write whitelist to UART");
+  Serial.println("  WL SET <1..5> STD|EXT <hex-id> - Set and activate a rule");
+  Serial.println("  WL CLEAR <1..5>      - Clear a rule");
+  Serial.println("  WL READ / WL WRITE  - Show current numeric whitelist rules");
   Serial.println("  WL SAVE             - Save whitelist to EEPROM");
   Serial.println();
 
   Serial.println("BLACKLIST MANAGEMENT:");
-  Serial.println("  BL READ             - Read blacklist from UART");
-  Serial.println("  BL WRITE            - Write blacklist to UART");
+  Serial.println("  BL SET <1..5> STD|EXT <hex-id> - Set and activate a rule");
+  Serial.println("  BL CLEAR <1..5>      - Clear a rule");
+  Serial.println("  BL READ / BL WRITE  - Show current numeric blacklist rules");
   Serial.println("  BL SAVE             - Save blacklist to EEPROM");
+  Serial.println("  Hex ID limits: STD 7FF, EXT 1FFFFFFF (optional 0x prefix)");
   Serial.println();
 
   Serial.println("SD CARD & DATA LOGGING:");
-  Serial.println("  SD                  - Initialize SD card");
+  Serial.println("  LOG STOP / LOG START - Drain and close / resume logging");
+  Serial.println("  SD                  - Show SD startup and error diagnostics");
   Serial.println("  FILE RESET          - Reset file counter");
   Serial.println("  SAVVYCAN            - Toggle SavvyCAN mode (UART protocol)");
   Serial.println();
 
   Serial.println("=========================================\n");
+}
+
+void CLIHandler::showSDDiag() {
+  const uint8_t currentErrorCode = sd.sdErrorCode();
+  const uint8_t currentErrorData = sd.sdErrorData();
+
+  Serial.println(F("\n========== SD DIAGNOSTICS ==========\n"));
+  Serial.print(F("Live SD state:     "));
+  Serial.println(sdReady ? F("READY (SD LED green)") : F("UNAVAILABLE (SD LED red)"));
+  Serial.print(F("Logging enabled:   "));
+  Serial.println(loggingEnabled ? F("YES") : F("NO"));
+  Serial.print(F("Queue high water:  "));
+  Serial.println(sdQueueHighWater);
+  Serial.print(F("Runtime recovery:  "));
+  if (sdFaultLatched) {
+    Serial.println(F("STOPPED after runtime fault; inspect card, then reboot"));
+  } else {
+    Serial.println(savvyCAN ? F("Paused in SavvyCAN mode") : F("Retry every 2000 ms until first successful mount"));
+  }
+  Serial.println(F("Card health check: Every 1000 ms while ready"));
+  Serial.print(F("Runtime attempts:  "));
+  Serial.println(sdRuntimeAttempts);
+  Serial.print(F("Buffered messages: "));
+  Serial.print(bufferIndex);
+  Serial.println(F(" / 512"));
+  Serial.print(F("Dropped messages:  "));
+  Serial.println(sdDroppedMessages);
+  Serial.print(F("SD queue overflows: "));
+  Serial.println(sdQueueOverflows);
+  Serial.print(F("Unconfirmed messages: "));
+  Serial.println(sdUnconfirmedMessages);
+  Serial.print(F("Pending unsynced messages: "));
+  Serial.println(sdPendingMessages);
+  Serial.print(F("Last synced bytes: "));
+  Serial.println(sdSyncedBytes);
+  Serial.println(F("Segments: direct CSV, 4 MiB / 5 min; sync every 1000 ms"));
+  Serial.print(F("Last sync duration (us): "));
+  Serial.println(sdLastSyncMicros);
+  Serial.print(F("Max sync duration (us): "));
+  Serial.println(sdMaxSyncMicros);
+  Serial.print(F("CLI output overflow (dropped bytes): "));
+  Serial.println(Serial.droppedBytes());
+  Serial.println(F("CAN library RX losses: unmeasured"));
+  Serial.print(F("SLCAN dropped frames: "));
+  Serial.println(slcanDroppedFrames());
+  Serial.print(F("Last runtime fault: "));
+  Serial.println(sdLastFailure);
+  Serial.print(F("Saved fault error: 0x"));
+  Serial.print(sdLastErrorCode, HEX);
+  Serial.print(F(" / data=0x"));
+  Serial.print(sdLastErrorData, HEX);
+  if (sdLastErrorCode) {
+    Serial.print(F(" / "));
+    printSdErrorSymbol(&Serial, sdLastErrorCode);
+  }
+  Serial.println();
+  Serial.print(F("Startup result:    "));
+  Serial.println(sdStartupReady ? F("OK (historical)") : F("FAILED (historical)"));
+  Serial.print(F("Startup attempts:  "));
+  Serial.print(sdStartupAttempts);
+  Serial.print(F(" / "));
+  Serial.println(SD_STARTUP_MAX_ATTEMPTS);
+  Serial.print(F("Retry delay:       "));
+  Serial.print(SD_STARTUP_RETRY_DELAY_MS);
+  Serial.println(F(" ms"));
+  Serial.print(F("Init at uptime:    "));
+  Serial.print(sdStartupMillis);
+  Serial.println(F(" ms"));
+  Serial.print(F("Total init/retry:  "));
+  Serial.print(sdStartupDurationMillis);
+  Serial.println(F(" ms"));
+  Serial.print(F("Current uptime:    "));
+  Serial.print(millis());
+  Serial.println(F(" ms"));
+  Serial.print(F("SPI requested max: "));
+  Serial.print(sdSpiClockMHz);
+  Serial.println(F(" MHz (not a measured clock)"));
+  Serial.print(F("SPI CRC checking:  "));
+  Serial.println(USE_SD_CRC ? F("ENABLED (commands and data)") : F("DISABLED"));
+  Serial.print(F("SPI transfer mode: "));
+  Serial.println(USE_SPI_ARRAY_TRANSFER == 0 ? F("BYTE (bulk path bypassed)") : F("BULK"));
+  Serial.print(F("SPI pins:          CS="));
+  Serial.print(CHIP_SELECT);
+  Serial.print(F(" SCK="));
+  Serial.print(SCK);
+  Serial.print(F(" MOSI="));
+  Serial.print(MOSI);
+  Serial.print(F(" MISO="));
+  Serial.println(MISO);
+
+  if (sdStartupAttempts > 1) {
+    Serial.print(F("First failure:     0x"));
+    Serial.print(sdFirstErrorCode, HEX);
+    Serial.print(F(" / data=0x"));
+    Serial.print(sdFirstErrorData, HEX);
+    if (sdFirstErrorCode) {
+      Serial.print(F(" / "));
+      printSdErrorSymbol(&Serial, sdFirstErrorCode);
+    }
+    Serial.println();
+  }
+  Serial.print(F("Final init error:  0x"));
+  Serial.print(sdStartupErrorCode, HEX);
+  Serial.print(F(" / data=0x"));
+  Serial.print(sdStartupErrorData, HEX);
+  if (sdStartupErrorCode) {
+    Serial.print(F(" / "));
+    printSdErrorSymbol(&Serial, sdStartupErrorCode);
+  }
+  Serial.println();
+  Serial.print(F("Current error:     0x"));
+  Serial.print(currentErrorCode, HEX);
+  Serial.print(F(" / data=0x"));
+  Serial.print(currentErrorData, HEX);
+  if (currentErrorCode) {
+    Serial.print(F(" / "));
+    printSdErrorSymbol(&Serial, currentErrorCode);
+  }
+  Serial.println();
+
+  Serial.print(F("Filesystem:        "));
+  if (sdReady) {
+    sd.printFatType(&Serial);
+    Serial.println();
+  } else {
+    Serial.println(sdFaultLatched ? F("Fault latched; reboot required") : F("Unavailable; awaiting mount"));
+  }
+  Serial.println(F("\nRead-only report; no reinitialization or write test performed."));
+  Serial.println(F("Startup result is retained; current errors may reflect later logging."));
+  if (sdFaultLatched) {
+    Serial.println(F("No further SD access this boot; automatic retries could worsen corruption."));
+    Serial.println(F("Preserve/image the card before repair or formatting. Reboot does not repair FAT."));
+  }
+  if (!sdReady) {
+    if (sdStartupErrorCode == SD_CARD_ERROR_CMD0) {
+      Serial.println(F("CMD0: card did not enter SPI idle; check card power, CS and SPI wiring."));
+    }
+    Serial.println(F("Compare reports after separate USB-only and vehicle-power cold boots."));
+    Serial.println(F("Check SD 3.3V at the socket during startup for slow rise, dips or ripple."));
+    Serial.println(F("Check common ground, SPI signal levels and regulator decoupling."));
+  }
+  Serial.println(F("SD supply voltage is not measured by this report."));
+  Serial.println(F("\n====================================\n"));
 }
 
 void CLIHandler::showStatus() {
@@ -384,6 +700,20 @@ void CLIHandler::showStatus() {
   Serial.print("File Count:     ");
   Serial.println(fileCount);
 
+  Serial.print(F("Termination LED input: "));
+  Serial.println(StatusConfig::TERMINATION_SENSE_PIN >= 0 ? F("CONFIGURED") : F("UNCONFIGURED (LED off)"));
+    Serial.print(F("VBATT (P003):          "));
+    if (vbattValid) {
+      Serial.print(vbattVolts, 2);
+      Serial.print(F(" V / ADC="));
+      Serial.println(vbattRaw);
+    } else {
+      Serial.println(F("ADC READ FAILED"));
+    }
+    Serial.print(F("Power indication:      "));
+    Serial.println(!vbattValid ? F("UNKNOWN (LED off)") : vbattVolts > StatusConfig::VEHICLE_POWER_THRESHOLD_VOLTS ?
+      F("VEHICLE (>6 V)") : F("USB (VBATT <=6 V inferred)"));
+  Serial.println(F("Recording trigger:     Filtered CAN frames (no parameter trigger configured)"));
   Serial.println();
 }
 
@@ -643,79 +973,64 @@ void CLIHandler::disableWhitelist() {
 }
 
 void CLIHandler::readWhitelist() {
-  Serial.println("Enter whitelist data (terminate with >): ");
-  Serial.println("READY FOR INPUT");
+  writeWhitelist();
 }
 
 void CLIHandler::writeWhitelist() {
-  Serial.print("Whitelist: ");
-  for (int i = 0; i < NUM_ROWS; i++) {
-    for (int j = 0; j < NUM_COLS; j++) {
-      Serial.print(whitelist[i][j]);
-    }
-    Serial.print("*");
-  }
-  Serial.println(">");
+  showFilterRules("Whitelist:", whitelistRules);
 }
 
 void CLIHandler::burnWhitelist() {
-  int index = whitelistIndex;
-  for (int i = 0; i < NUM_ROWS; i++) {
-    for (int j = 0; j < NUM_COLS; j++) {
-      EEPROM.update(index, whitelist[i][j]);
-      index++;
-    }
-    index = index + NUM_COLS;
-  }
+  saveFilterRules(false);
   Serial.println("OK: Whitelist saved to EEPROM");
 }
 
 void CLIHandler::readBlacklist() {
-  Serial.println("Enter blacklist data (terminate with >): ");
-  Serial.println("READY FOR INPUT");
+  writeBlacklist();
 }
 
 void CLIHandler::writeBlacklist() {
-  Serial.print("Blacklist: ");
-  for (int i = 0; i < NUM_ROWS; i++) {
-    for (int j = 0; j < NUM_COLS; j++) {
-      Serial.print(blacklist[i][j]);
-    }
-    Serial.print("*");
-  }
-  Serial.println(">");
+  showFilterRules("Blacklist:", blacklistRules);
 }
 
 void CLIHandler::burnBlacklist() {
-  int index = blacklistIndex;
-  for (int i = 0; i < NUM_ROWS; i++) {
-    for (int j = 0; j < NUM_COLS; j++) {
-      EEPROM.update(index, blacklist[i][j]);
-      index++;
-    }
-    index = index + NUM_COLS;
-  }
+  saveFilterRules(true);
   Serial.println("OK: Blacklist saved to EEPROM");
 }
 
 void CLIHandler::toggleSavvyCAN() {
-  savvyCAN = !savvyCAN;
-  if (savvyCAN) {
-    Serial.println("OK: SavvyCAN mode ENABLED");
-  } else {
-    Serial.println("OK: SavvyCAN mode DISABLED");
-  }
+  Serial.discard();
+  bridgeReturnReportPending = true;
+  enterBridgeMode();
 }
 
 void CLIHandler::resetFileCount() {
+  const bool resume = loggingEnabled;
+  stopLogging();
+  if (!sdReady) {
+    Serial.println(F("ERR: File counter unchanged; SD close/drain failed"));
+    return;
+  }
   fileCount = 1;
   EEPROM.update(fileCountIndex, fileCount);
+  if (resume) startLogging();
   Serial.println("OK: File count reset to 1");
 }
 
 void CLIHandler::showCANDiag() {
   Serial.println("\n========== CAN DIAGNOSTICS ==========\n");
-  Serial.println("CAN Bus Status: OK");
+  int errorCode = 0;
+  const bool error = CAN.isError(errorCode);
+  Serial.print(F("CAN Bus Status: "));
+  Serial.println(!canReady || error ? F("ERROR") : F("OK"));
+  Serial.print(F("CAN error code: "));
+  Serial.println(errorCode, HEX);
+  Serial.print(F("CANTIMEOUT: "));
+  Serial.print(StatusConfig::CANTIMEOUT);
+  Serial.println(F(" ms"));
+  Serial.print(F("Receive state: "));
+  Serial.println(canMessageReceived && millis() - lastCANReceiveMillis < StatusConfig::CANTIMEOUT ?
+      F("ACTIVE") : F("IDLE / no recent received messages"));
   Serial.print("Speed: ");
   Serial.print(CANSpeedArray[CANSpeed] / 1000);
   Serial.println(" kbps");
