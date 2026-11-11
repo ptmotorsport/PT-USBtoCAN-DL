@@ -26,7 +26,11 @@
 #include "can_filter.h"
 #include "slcan_bridge.h"
 #include "status_config.h"
+#include "gps_monitor.h"
 #include <analog.h>
+
+GPSMonitor gpsMonitor;
+uint32_t gpsBaud = 9600;
 
 // NeoPixel variables
 int pwrLED = 4;
@@ -112,7 +116,7 @@ unsigned long sdStartupMillis = 0;
 unsigned long sdStartupDurationMillis = 0;
 uint8_t sdStartupErrorCode = 0;
 uint8_t sdStartupErrorData = 0;
-extern const uint8_t SD_STARTUP_MAX_ATTEMPTS = 5;
+extern const uint8_t SD_STARTUP_MAX_ATTEMPTS = 1;
 extern const unsigned long SD_STARTUP_RETRY_DELAY_MS = 500;
 uint8_t sdStartupAttempts = 0;
 uint8_t sdFirstErrorCode = 0;
@@ -147,7 +151,7 @@ int CANSpeedArray[4] = {125000, 250000, 500000, 1000000};
 // SD buffer variables
 int bufferIndex = 0;
 const int MSG_LENGTH = 100;
-const int BUFFER_SIZE = 512;
+extern const int BUFFER_SIZE = 448;
 FrameQueue<BUFFER_SIZE> logQueue;
 uint32_t sdQueueOverflows = 0;
 uint32_t sdQueueHighWater = 0;
@@ -309,14 +313,27 @@ void setup() {
   loadLegacyRules();
   loadSavedFilterRules();
 
+  Serial1.begin(gpsBaud, SERIAL_8N1);
+  // Disable the 5 V UART TX output; this test only needs GPS TX -> D0.
+  pinMode(1, INPUT);
+
   // Update filter states from EEPROM
   clearFilters();
   booting = false;
   updateStatusLEDs();
 }
 
+void serviceGPS() {
+  for (size_t processed = 0; processed < 128 && Serial1.available() > 0; ++processed) {
+    const int character = Serial1.read();
+    if (character < 0) break;
+    gpsMonitor.feed(static_cast<uint8_t>(character), millis());
+  }
+}
+
 void loop() {
   logCAN();
+  serviceGPS();
   if (savvyCAN) {
     slcanProcess();
   } else {
@@ -334,6 +351,7 @@ void loop() {
     serviceSD();
     flushBufferToSD();
   }
+  serviceGPS();
   currentMillis = millis();
   handleButtons();
 

@@ -1,0 +1,96 @@
+VERSION "ECUMaster GPS V2 and custom INS attitude/quality; big-endian"
+
+NS_ :
+    CM_
+    VAL_
+
+BS_:
+
+BU_: USBtoCAN ECU
+
+BO_ 1024 Raw_Position: 8 USBtoCAN
+ SG_ Latitude : 7|32@0- (0.0000001,0) [-90|90] "deg" ECU
+ SG_ Longitude : 39|32@0- (0.0000001,0) [-180|180] "deg" ECU
+
+BO_ 1025 Raw_GPS_Info: 8 USBtoCAN
+ SG_ Speed : 7|16@0- (0.036,0) [-1179.648|1179.612] "km/h" ECU
+ SG_ Height : 23|16@0- (1,0) [-32768|32767] "m" ECU
+ SG_ Satellites : 40|8@1+ (1,0) [0|72] "" ECU
+ SG_ GPS_Frame_Index : 48|4@1+ (1,0) [0|15] "" ECU
+ SG_ Empty_Frame_Index : 52|4@1+ (1,0) [0|15] "" ECU
+ SG_ GPS_Status : 56|3@1+ (1,0) [1|4] "" ECU
+
+BO_ 1026 Raw_Heading_Rates_XY: 8 USBtoCAN
+ SG_ Heading_Motion : 7|16@0+ (1,0) [0|359] "deg" ECU
+ SG_ Heading_Vehicle : 23|16@0+ (1,0) [0|359] "deg" ECU
+ SG_ X_Angle_Rate : 39|16@0- (0.01,0) [-327.67|327.67] "deg/s" ECU
+ SG_ Y_Angle_Rate : 55|16@0- (0.01,0) [-327.67|327.67] "deg/s" ECU
+
+BO_ 1027 Raw_Rate_Z_Acceleration: 8 USBtoCAN
+ SG_ Z_Angle_Rate : 7|16@0- (0.01,0) [-327.67|327.67] "deg/s" ECU
+ SG_ X_Acceleration : 23|16@0- (0.01,0) [-8|8] "g" ECU
+ SG_ Y_Acceleration : 39|16@0- (0.01,0) [-8|8] "g" ECU
+ SG_ Z_Acceleration : 55|16@0- (0.01,0) [-8|8] "g" ECU
+
+BO_ 1032 Fused_Position: 8 USBtoCAN
+ SG_ Latitude : 7|32@0- (0.0000001,0) [-90|90] "deg" ECU
+ SG_ Longitude : 39|32@0- (0.0000001,0) [-180|180] "deg" ECU
+
+BO_ 1033 Fused_GPS_Info: 8 USBtoCAN
+ SG_ Speed : 7|16@0- (0.036,0) [-1179.648|1179.612] "km/h" ECU
+ SG_ Height : 23|16@0- (1,0) [-32768|32767] "m" ECU
+ SG_ Satellites : 40|8@1+ (1,0) [0|72] "" ECU
+ SG_ GPS_Frame_Index : 48|4@1+ (1,0) [0|15] "" ECU
+ SG_ Empty_Frame_Index : 52|4@1+ (1,0) [0|15] "" ECU
+ SG_ GPS_Status : 56|3@1+ (1,0) [1|4] "" ECU
+
+BO_ 1034 Fused_Heading_Rates_XY: 8 USBtoCAN
+ SG_ Heading_Motion : 7|16@0+ (1,0) [0|359] "deg" ECU
+ SG_ Heading_Vehicle : 23|16@0+ (1,0) [0|359] "deg" ECU
+ SG_ X_Angle_Rate : 39|16@0- (0.01,0) [-327.67|327.67] "deg/s" ECU
+ SG_ Y_Angle_Rate : 55|16@0- (0.01,0) [-327.67|327.67] "deg/s" ECU
+
+BO_ 1035 Fused_Rate_Z_Acceleration: 8 USBtoCAN
+ SG_ Z_Angle_Rate : 7|16@0- (0.01,0) [-327.67|327.67] "deg/s" ECU
+ SG_ X_Acceleration : 23|16@0- (0.01,0) [-8|8] "g" ECU
+ SG_ Y_Acceleration : 39|16@0- (0.01,0) [-8|8] "g" ECU
+ SG_ Z_Acceleration : 55|16@0- (0.01,0) [-8|8] "g" ECU
+
+BO_ 1036 INS_Attitude: 8 USBtoCAN
+ SG_ Roll : 7|16@0- (0.01,0) [-180|180] "deg" ECU
+ SG_ Pitch : 23|16@0- (0.01,0) [-90|90] "deg" ECU
+ SG_ Yaw : 39|16@0+ (0.01,0) [0|359.99] "deg" ECU
+ SG_ Tilt_Valid : 48|1@1+ (1,0) [0|1] "" ECU
+ SG_ Yaw_Valid : 49|1@1+ (1,0) [0|1] "" ECU
+ SG_ Global_Valid : 50|1@1+ (1,0) [0|1] "" ECU
+ SG_ Calibrated : 51|1@1+ (1,0) [0|1] "" ECU
+ SG_ IMU_Fresh : 52|1@1+ (1,0) [0|1] "" ECU
+ SG_ GPS_Fresh : 53|1@1+ (1,0) [0|1] "" ECU
+ SG_ Barometer_Fresh : 54|1@1+ (1,0) [0|1] "" ECU
+ SG_ TX_Fault : 55|1@1+ (1,0) [0|1] "" ECU
+ SG_ State : 56|8@1+ (1,0) [0|4] "" ECU
+
+BO_ 1037 INS_Quality: 8 USBtoCAN
+ SG_ GPS_Age : 7|16@0+ (1,0) [0|65535] "ms" ECU
+ SG_ Horizontal_Sigma : 23|16@0+ (0.1,0) [0|6553.5] "m" ECU
+ SG_ Vertical_Sigma : 39|16@0+ (0.1,0) [0|6553.5] "m" ECU
+ SG_ Fault_Bits : 55|16@0+ (1,0) [0|65535] "" ECU
+
+VAL_ 1025 GPS_Status 1 "NoFix" 3 "2D" 4 "3D";
+VAL_ 1033 GPS_Status 1 "NoFix" 3 "2D" 4 "3D";
+VAL_ 1036 State 0 "Uncalibrated" 1 "TiltOnly" 2 "GPSAided" 3 "DeadReckoning" 4 "Fault";
+
+CM_ "GPS bank layout source: docs/gpsV2Manual.pdf pages 6-7; page 6 specifies Motorola big-endian multibyte fields. Single-byte/sub-byte fields use explicit within-byte LSB bit positions. Custom INS messages are not ECUMaster GPS V2 messages.";
+CM_ "Raw IDs 0x400-0x403; fused IDs 0x408-0x40B. GPS status describes fix type, never estimator confidence. A single GPS antenna cannot independently supply vehicle attitude.";
+CM_ "NoFix zeros position, speed and height; callers suppress invalid position frames. Unavailable course, heading and IMU channels are zero only with corresponding INS_Quality fault bits. Zero is not evidence of valid north heading or a stationary IMU.";
+CM_ BO_ 1025 "Byte 4 and byte 7 bits 3..7 reserved zero. Byte 5 (zero-based; sixth payload byte) is satellite count: fresh GSV visible count, otherwise fresh GGA used count; zero when neither is available. Byte 6 GPS counter low nibble, empty counter high nibble. Modulo-16 counters increment on each position/empty frame respectively. Status byte 7 low 3 bits.";
+CM_ BO_ 1033 "Same layout and counter semantics as 0x401. Satellite count is also carried here; each bank maintains its own counters.";
+CM_ SG_ 1025 Satellites "Payload byte 5: fresh GSV visible satellites, otherwise used satellites from a fresh GPS fix; zero if unavailable.";
+CM_ SG_ 1033 Satellites "Payload byte 5: same satellite count as raw GPS info.";
+CM_ SG_ 1026 Heading_Motion "Course over ground, not body yaw. Check INS_Quality CourseUnavailable bit (0x1000). Circular integer-degree rounding wraps north to zero.";
+CM_ SG_ 1026 Heading_Vehicle "Raw vehicle heading is unavailable with a single antenna: zero placeholder, not a legitimate heading. INS_Quality HeadingUnavailable bit (0x2000) must be set.";
+CM_ SG_ 1034 Heading_Motion "Course over ground. Check INS_Quality CourseUnavailable bit (0x1000).";
+CM_ SG_ 1034 Heading_Vehicle "Estimated vehicle yaw when valid; zero when unavailable with INS_Quality HeadingUnavailable bit (0x2000). Not roll or pitch.";
+CM_ BO_ 1036 "0x40C. Roll/pitch zero when Tilt_Valid=0, yaw zero when Yaw_Valid=0. Byte 6 validity/freshness flags; bit 7 TX range/other fault. Yaw rounded to hundredths wraps north to zero. State does not override validity flags.";
+CM_ BO_ 1037 "0x40D. GPS age 65535 means unknown or at least 65535 ms. Sigma raw 65535 means unknown/overflow, not a finite 6553.5 m estimate. Fault bits 0x1000 course unavailable, 0x2000 heading unavailable, 0x4000 fused-bank IMU channels unavailable, 0x8000 telemetry unrepresentable; lower 12 bits caller-defined. Use raw IMU on 0x402/0x403 before the filter is initialized or when fused channels are invalid.";
+CM_ SG_ 1035 X_Acceleration "Acceleration in g supplied by caller; coordinate frame and gravity compensation are estimator policy. INS_Quality ImuUnavailable bit (0x4000) marks unavailable gyro/acceleration channels.";

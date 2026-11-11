@@ -1,0 +1,49 @@
+VERSION "PT HR Bridge PoC"
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    SIG_VALTYPE_
+
+BS_:
+
+BU_: PT_IO_MINI2 DASH
+
+BO_ 1792 PT_HR_BRIDGE: 8 PT_IO_MINI2
+ SG_ HR_BPM : 0|8@1+ (1,0) [0|255] "bpm" DASH
+ SG_ HR_VALID : 8|1@1+ (1,0) [0|1] "" DASH
+ SG_ HR_PAIRED : 9|1@1+ (1,0) [0|1] "" DASH
+ SG_ I2C_RESPONDING : 10|1@1+ (1,0) [0|1] "" DASH
+ SG_ SEQUENCE_FRESH : 11|1@1+ (1,0) [0|1] "" DASH
+ SG_ SENSOR_STATE : 16|8@1+ (1,0) [0|5] "" DASH
+ SG_ BEAT_COUNT : 24|8@1+ (1,0) [0|255] "count" DASH
+ SG_ DEVICE_NUMBER : 32|16@1+ (1,0) [0|65535] "" DASH
+ SG_ DEVICE_TYPE : 48|8@1+ (1,0) [0|255] "" DASH
+ SG_ TRANSMISSION_TYPE : 56|8@1+ (1,0) [0|255] "" DASH
+
+VAL_ 1792 SENSOR_STATE 0 "error" 1 "stopped" 2 "searching" 3 "receiving" 4 "stale" 5 "disconnected";
+
+CM_ BO_ 1792 "PT HR Bridge PoC frame. Default TXBASE is 0x700; configure the matching CAN identifier and bitrate for the bench network.";
+CM_ SG_ 1792 HR_BPM "Zero when HR_VALID is clear.";
+CM_ SG_ 1792 HR_VALID "Requires paired, receiving, nonzero BPM and fresh I2C response/sequence.";
+
+BO_ 1793 PT_CORE_TEMPERATURE: 8 PT_IO_MINI2
+ SG_ CORE_TEMP : 0|16@1- (0.01,0) [-327.68|327.66] "degC" DASH
+ SG_ SKIN_TEMP : 16|16@1- (0.01,0) [-327.68|327.66] "degC" DASH
+ SG_ CORE_VALID : 32|1@1+ (1,0) [0|1] "" DASH
+ SG_ SKIN_VALID : 33|1@1+ (1,0) [0|1] "" DASH
+ SG_ BLE_SUBSCRIBED : 34|1@1+ (1,0) [0|1] "" DASH
+ SG_ CORE_FRESH : 35|1@1+ (1,0) [0|1] "" DASH
+ SG_ BRIDGE_RESPONDING : 36|1@1+ (1,0) [0|1] "" DASH
+ SG_ SNAPSHOT_FRESH : 37|1@1+ (1,0) [0|1] "" DASH
+ SG_ QUALITY_AVAILABLE : 38|1@1+ (1,0) [0|1] "" DASH
+ SG_ HEAT_AVAILABLE : 39|1@1+ (1,0) [0|1] "" DASH
+ SG_ CORE_QUALITY : 40|8@1+ (1,0) [0|255] "" DASH
+ SG_ HEAT_STRAIN : 48|8@1+ (0.1,0) [0|25.5] "" DASH
+ SG_ CORE_AGE : 56|8@1+ (0.1,0) [0|25.4] "s" DASH
+
+VAL_ 1793 CORE_QUALITY 0 "invalid" 1 "poor" 2 "fair" 3 "good" 4 "excellent" 255 "unavailable";
+CM_ BO_ 1793 "CORE temperature at TXBASE+1. Core and skin raw 0x7FFF are unavailable; always check validity flags. Age raw 255 is unknown, 254 is saturated.";

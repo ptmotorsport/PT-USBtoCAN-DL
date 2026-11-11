@@ -9,6 +9,8 @@
 #include "slcan_protocol.h"
 #include "slcan_bridge.h"
 #include "usb_connection.h"
+#include "gps_monitor.h"
+#include "i2c_diagnostics.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,12 +109,15 @@ extern uint8_t sdLastErrorCode;
 extern uint8_t sdLastErrorData;
 extern const char *sdLastFailure;
 extern int bufferIndex;
+extern const int BUFFER_SIZE;
 extern bool canReady;
 extern bool canMessageReceived;
 extern unsigned long lastCANReceiveMillis;
 extern int vbattRaw;
 extern float vbattVolts;
 extern bool vbattValid;
+extern GPSMonitor gpsMonitor;
+extern uint32_t gpsBaud;
 
 namespace {
 
@@ -369,6 +374,40 @@ void CLIHandler::handleCommand(const String &line) {
     return;
   }
 
+  if (cmd == "GPS") {
+    showGPSDiag();
+    return;
+  }
+  if (cmd == "I2C") {
+    scanI2C(Serial);
+    return;
+  }
+  if (cmd == "IMU") {
+    showIMUDiagnostics(Serial);
+    return;
+  }
+  if (cmd == "BARO") {
+    showBaroDiagnostics(Serial);
+    return;
+  }
+  if (cmd == "GPS BAUD" || cmd.startsWith("GPS BAUD ")) {
+    const String argument = cmd.substring(9);
+    unsigned long baud = 0;
+    if (!parseFilterNumber(argument.c_str(), 10, 115200, baud) ||
+        (baud != 4800 && baud != 9600 && baud != 19200 &&
+         baud != 38400 && baud != 57600 && baud != 115200)) {
+      Serial.println(F("ERR: Use GPS BAUD 4800|9600|19200|38400|57600|115200"));
+      return;
+    }
+    Serial1.end();
+    gpsBaud = static_cast<uint32_t>(baud);
+    gpsMonitor = GPSMonitor{};
+    Serial1.begin(gpsBaud, SERIAL_8N1);
+    pinMode(1, INPUT);
+    Serial.println(F("OK: Device GPS UART baud changed; counters reset. GPS module unchanged."));
+    return;
+  }
+
   // STATUS
   if (cmd == "STATUS") {
     showStatus();
@@ -505,6 +544,17 @@ void CLIHandler::showHelp() {
   Serial.println("  CANSPEED <kbps>     - Set CAN speed (125/250/500/1000)");
   Serial.println();
 
+  Serial.println("GPS (receive-only UART test):");
+  Serial.println("  GPS                 - Show NMEA activity and recent sentences");
+  Serial.println("  GPS BAUD <baud>     - Set device UART baud (default 9600)");
+  Serial.println();
+
+  Serial.println("I2C SENSORS:");
+  Serial.println("  I2C                 - Scan for I2C address responses");
+  Serial.println("  IMU                 - Test GY-521 / MPU-6050");
+  Serial.println("  BARO                - Test BMP280 pressure and temperature");
+  Serial.println();
+
   Serial.println("FILTERING:");
   Serial.println("  FILTERS ON          - Enable CAN filtering");
   Serial.println("  FILTERS OFF         - Disable CAN filtering");
@@ -538,6 +588,48 @@ void CLIHandler::showHelp() {
   Serial.println("=========================================\n");
 }
 
+void CLIHandler::showGPSDiag() {
+  const uint32_t now = millis();
+  Serial.println(F("\n========== GPS UART DIAGNOSTICS =========="));
+  Serial.print(F("Serial1: D0/RX <- GPS TX; D1 disabled (input); 8N1; baud "));
+  Serial.println(gpsBaud);
+  Serial.println(F("Receive-only test: no configuration sent to GPS."));
+  Serial.print(F("Communication: "));
+  if (gpsMonitor.bytesReceived == 0) {
+    Serial.println(F("NO BYTES - check power, common GND, TX/RX wiring and baud"));
+  } else if (now - gpsMonitor.lastByteMillis >= 5000) {
+    Serial.println(F("STALE - no UART bytes in the last 5 seconds"));
+  } else if (gpsMonitor.validSentences == 0 || now - gpsMonitor.lastValidMillis >= 5000) {
+    Serial.println(F("BYTES RECEIVED, no recent valid NMEA - check baud/error counts"));
+  } else {
+    Serial.println(F("TALKING - checksum-valid NMEA received within 5 seconds"));
+  }
+  Serial.print(F("Bytes received: "));
+  Serial.println(gpsMonitor.bytesReceived);
+  Serial.print(F("Valid NMEA sentences: "));
+  Serial.println(gpsMonitor.validSentences);
+  Serial.print(F("Checksum errors: "));
+  Serial.println(gpsMonitor.checksumErrors);
+  Serial.print(F("Malformed/incomplete sentences: "));
+  Serial.println(gpsMonitor.malformedSentences);
+  Serial.print(F("Overlong sentences (also malformed): "));
+  Serial.println(gpsMonitor.overlongSentences);
+  if (gpsMonitor.bytesReceived != 0) {
+    Serial.print(F("Last byte age (ms): "));
+    Serial.println(now - gpsMonitor.lastByteMillis);
+  }
+  if (gpsMonitor.validSentences != 0) {
+    Serial.print(F("Last valid NMEA age (ms): "));
+    Serial.println(now - gpsMonitor.lastValidMillis);
+  }
+  Serial.print(gpsMonitor.partialSentence() ?
+      F("Latest NMEA (still receiving; may be invalid/truncated): ") :
+      F("Latest NMEA (may be invalid/truncated): "));
+  Serial.println(gpsMonitor.lastSentence[0] ? gpsMonitor.lastSentence : "(none)");
+  Serial.println(F("Stored sentences may be old. GGA fix quality 0 / RMC status V means no fix."));
+  Serial.println(F("No satellite lock is needed to confirm UART communication.\n"));
+}
+
 void CLIHandler::showSDDiag() {
   const uint8_t currentErrorCode = sd.sdErrorCode();
   const uint8_t currentErrorData = sd.sdErrorData();
@@ -560,7 +652,8 @@ void CLIHandler::showSDDiag() {
   Serial.println(sdRuntimeAttempts);
   Serial.print(F("Buffered messages: "));
   Serial.print(bufferIndex);
-  Serial.println(F(" / 512"));
+  Serial.print(F(" / "));
+  Serial.println(BUFFER_SIZE);
   Serial.print(F("Dropped messages:  "));
   Serial.println(sdDroppedMessages);
   Serial.print(F("SD queue overflows: "));
@@ -598,9 +691,13 @@ void CLIHandler::showSDDiag() {
   Serial.print(sdStartupAttempts);
   Serial.print(F(" / "));
   Serial.println(SD_STARTUP_MAX_ATTEMPTS);
-  Serial.print(F("Retry delay:       "));
-  Serial.print(SD_STARTUP_RETRY_DELAY_MS);
-  Serial.println(F(" ms"));
+  if (SD_STARTUP_MAX_ATTEMPTS > 1) {
+    Serial.print(F("Retry delay:       "));
+    Serial.print(SD_STARTUP_RETRY_DELAY_MS);
+    Serial.println(F(" ms"));
+  } else {
+    Serial.println(F("Startup retries:   Disabled (one attempt)"));
+  }
   Serial.print(F("Init at uptime:    "));
   Serial.print(sdStartupMillis);
   Serial.println(F(" ms"));

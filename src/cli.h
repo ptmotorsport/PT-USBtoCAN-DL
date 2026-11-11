@@ -22,6 +22,7 @@ private:
   void showRTCDiag();
   void showCANDiag();
   void showSDDiag();
+  void showGPSDiag();
 
   // RTC utilities
   String detectRTCClockSource();

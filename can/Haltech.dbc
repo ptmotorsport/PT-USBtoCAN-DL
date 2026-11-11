@@ -1,0 +1,872 @@
+VERSION "Haltech ECU Broadcast CAN Protocol v2.0 (08/2025) - verified rebuild"
+
+NS_ :
+
+BS_:
+
+BU_: HaltechECU Vector__XXX
+
+BO_ 864 Haltech_0x360: 8 HaltechECU
+ SG_ c_ecu_rpm : 7|16@0+ (1,0) [0|65535] "rpm" Vector__XXX
+ SG_ c_ecu_map : 23|16@0+ (0.1,0) [0|6553.5] "kPa" Vector__XXX
+ SG_ c_ecu_tps : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_waterPress : 55|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+
+CM_ BO_ 864 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 864 c_ecu_rpm "RPM";
+CM_ SG_ 864 c_ecu_map "Manifold Pressure (absolute)";
+CM_ SG_ 864 c_ecu_tps "Throttle Position";
+CM_ SG_ 864 c_ecu_waterPress "Coolant Pressure (gauge)";
+
+BO_ 865 Haltech_0x361: 8 HaltechECU
+ SG_ c_ecu_fuelPress : 7|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_oilPress : 23|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_engineDemand : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_wgPress : 55|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+
+CM_ BO_ 865 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 865 c_ecu_fuelPress "Fuel Pressure (gauge)";
+CM_ SG_ 865 c_ecu_oilPress "Oil Pressure (gauge)";
+CM_ SG_ 865 c_ecu_engineDemand "Engine Demand";
+CM_ SG_ 865 c_ecu_wgPress "Wastegate Pressure (gauge)";
+
+BO_ 866 Haltech_0x362: 8 HaltechECU
+ SG_ c_ecu_injDC : 7|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_secInjDC : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_ignAngle : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+CM_ BO_ 866 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 866 c_ecu_injDC "Injection Stage 1 Duty Cycle";
+CM_ SG_ 866 c_ecu_secInjDC "Injection Stage 2 Duty Cycle";
+CM_ SG_ 866 c_ecu_ignAngle "Ignition Angle (Leading)";
+
+BO_ 867 Haltech_0x363: 8 HaltechECU
+ SG_ c_ecu_wheelSlip : 7|16@0- (0.1,0) [-3276.8|3276.7] "km/h" Vector__XXX
+ SG_ c_ecu_wheelDiff : 23|16@0- (0.1,0) [-3276.8|3276.7] "km/h" Vector__XXX
+ SG_ c_ecu_lcEndRPM : 55|16@0+ (1,0) [0|65535] "rpm" Vector__XXX
+
+CM_ BO_ 867 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 867 c_ecu_wheelSlip "Wheel Slip";
+CM_ SG_ 867 c_ecu_wheelDiff "Wheel Diff";
+CM_ SG_ 867 c_ecu_lcEndRPM "Launch Control End RPM";
+
+BO_ 868 Haltech_0x364: 8 HaltechECU
+ SG_ c_ecu_injPW : 7|16@0+ (0.001,0) [0|65.535] "ms" Vector__XXX
+ SG_ c_ecu_secInjPW : 23|16@0+ (0.001,0) [0|65.535] "ms" Vector__XXX
+ SG_ c_ecu_injPW3 : 39|16@0+ (0.001,0) [0|65.535] "ms" Vector__XXX
+ SG_ c_ecu_injPW4 : 55|16@0+ (0.001,0) [0|65.535] "ms" Vector__XXX
+
+CM_ BO_ 868 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 868 c_ecu_injPW "Injection Stage 1 Average Injection Time";
+CM_ SG_ 868 c_ecu_secInjPW "Injection Stage 2 Average Injection Time";
+CM_ SG_ 868 c_ecu_injPW3 "Injection Stage 3 Average Injection Time";
+CM_ SG_ 868 c_ecu_injPW4 "Injection Stage 4 Average Injection Time";
+
+BO_ 872 Haltech_0x368: 8 HaltechECU
+ SG_ c_ecu_lambda1 : 7|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda2 : 23|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda3 : 39|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda4 : 55|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+
+CM_ BO_ 872 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 872 c_ecu_lambda1 "Wideband Sensor 1";
+CM_ SG_ 872 c_ecu_lambda2 "Wideband Sensor 2";
+CM_ SG_ 872 c_ecu_lambda3 "Wideband Sensor 3";
+CM_ SG_ 872 c_ecu_lambda4 "Wideband Sensor 4";
+
+BO_ 873 Haltech_0x369: 8 HaltechECU
+ SG_ c_ecu_triggerErrorCount : 7|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_triggerCounter : 23|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_triggerSyncLevel : 55|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+
+CM_ BO_ 873 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 873 c_ecu_triggerErrorCount "Trigger System Error Count";
+CM_ SG_ 873 c_ecu_triggerCounter "Trigger Counter";
+CM_ SG_ 873 c_ecu_triggerSyncLevel "Trigger Sync Level";
+
+BO_ 874 Haltech_0x36A: 8 HaltechECU
+ SG_ c_ecu_knockLevel1 : 7|16@0+ (0.01,0) [0|655.35] "dB" Vector__XXX
+ SG_ c_ecu_knockLevel2 : 23|16@0+ (0.01,0) [0|655.35] "dB" Vector__XXX
+
+CM_ BO_ 874 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 874 c_ecu_knockLevel1 "Knock Level 1";
+CM_ SG_ 874 c_ecu_knockLevel2 "Knock Level 2";
+
+BO_ 875 Haltech_0x36B: 8 HaltechECU
+ SG_ c_ecu_brakePress : 7|16@0+ (1,-101.3) [-101.3|65433.7] "kPa" Vector__XXX
+ SG_ c_ecu_NOSPress : 23|16@0+ (0.22,-101.3) [-101.3|14316.4] "kPa" Vector__XXX
+ SG_ c_ecu_turboSpeed : 39|16@0+ (10,0) [0|655350] "rpm" Vector__XXX
+ SG_ c_ecu_lateralG : 55|16@0- (0.1,0) [-3276.8|3276.7] "m/s2" Vector__XXX
+
+CM_ BO_ 875 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 875 c_ecu_brakePress "Brake Pressure Front (gauge)";
+CM_ SG_ 875 c_ecu_NOSPress "NOS Pressure Sensor 1";
+CM_ SG_ 875 c_ecu_turboSpeed "Turbo Speed Sensor 1";
+CM_ SG_ 875 c_ecu_lateralG "Lateral G";
+
+BO_ 876 Haltech_0x36C: 8 HaltechECU
+ SG_ c_ecu_wheelSpeedFL : 7|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ c_ecu_wheelSpeedFR : 23|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ c_ecu_wheelSpeedRL : 39|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ c_ecu_wheelSpeedRR : 55|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+
+CM_ BO_ 876 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 876 c_ecu_wheelSpeedFL "Wheel Speed Front Left";
+CM_ SG_ 876 c_ecu_wheelSpeedFR "Wheel Speed Front Right";
+CM_ SG_ 876 c_ecu_wheelSpeedRL "Wheel Speed Rear Left";
+CM_ SG_ 876 c_ecu_wheelSpeedRR "Wheel Speed Rear Right";
+
+BO_ 877 Haltech_0x36D: 8 HaltechECU
+ SG_ c_ecu_exCamAngle1 : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ c_ecu_exCamAngle2 : 55|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+CM_ BO_ 877 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 877 c_ecu_exCamAngle1 "Exhaust Cam Angle 1";
+CM_ SG_ 877 c_ecu_exCamAngle2 "Exhaust Cam Angle 2";
+
+BO_ 878 Haltech_0x36E: 8 HaltechECU
+ SG_ c_ecu_engineLimitingActive : 7|16@0+ (1,0) [0|65535] "boolean" Vector__XXX
+ SG_ c_ecu_lcIgnRetard : 23|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ c_ecu_lcFuelEnrich : 39|16@0- (0.1,0) [-3276.8|3276.7] "%" Vector__XXX
+ SG_ c_ecu_longitudinalG : 55|16@0- (0.1,0) [-3276.8|3276.7] "m/s2" Vector__XXX
+
+CM_ BO_ 878 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 878 c_ecu_engineLimitingActive "Engine Limiting Active";
+CM_ SG_ 878 c_ecu_lcIgnRetard "Launch Control Ignition Retard";
+CM_ SG_ 878 c_ecu_lcFuelEnrich "Launch Control Fuel Enrich";
+CM_ SG_ 878 c_ecu_longitudinalG "Longitudinal G";
+
+BO_ 879 Haltech_0x36F: 8 HaltechECU
+ SG_ c_ecu_genericOutput1DC : 7|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_boostCtrlOutput : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+
+CM_ BO_ 879 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 879 c_ecu_genericOutput1DC "Generic Output 1 Duty Cycle";
+CM_ SG_ 879 c_ecu_boostCtrlOutput "Boost Control Output";
+
+BO_ 880 Haltech_0x370: 8 HaltechECU
+ SG_ c_ecu_speed : 7|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ c_ecu_selectorPosition : 23|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_gear : 31|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_inCamAngle1 : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ c_ecu_inCamAngle2 : 55|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+CM_ BO_ 880 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 880 c_ecu_speed "Vehicle Speed";
+CM_ SG_ 880 c_ecu_selectorPosition "Selector Position; high byte of Haltech Combined Gear";
+CM_ SG_ 880 c_ecu_gear "Gear; low byte of Haltech Combined Gear";
+CM_ SG_ 880 c_ecu_inCamAngle1 "Intake Cam Angle 1";
+CM_ SG_ 880 c_ecu_inCamAngle2 "Intake Cam Angle 2";
+
+BO_ 881 Haltech_0x371: 8 HaltechECU
+ SG_ c_ecu_fuelFlow : 7|16@0+ (1,0) [0|65535] "cc/min" Vector__XXX
+ SG_ c_ecu_fuelFlowReturn : 23|16@0+ (1,0) [0|65535] "cc/min" Vector__XXX
+
+CM_ BO_ 881 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 881 c_ecu_fuelFlow "Fuel Flow";
+CM_ SG_ 881 c_ecu_fuelFlowReturn "Fuel Flow Return";
+
+BO_ 882 Haltech_0x372: 8 HaltechECU
+ SG_ c_ecu_battery : 7|16@0+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ c_ecu_targetBoostLevel : 39|16@0+ (0.1,0) [0|6553.5] "kPa" Vector__XXX
+ SG_ c_ecu_baro : 55|16@0+ (0.1,0) [0|6553.5] "kPa" Vector__XXX
+
+CM_ BO_ 882 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 882 c_ecu_battery "Battery Voltage";
+CM_ SG_ 882 c_ecu_targetBoostLevel "Target Boost Level";
+CM_ SG_ 882 c_ecu_baro "Barometric Pressure (absolute)";
+
+BO_ 883 Haltech_0x373: 8 HaltechECU
+ SG_ c_ecu_egt1 : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt2 : 23|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt3 : 39|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt4 : 55|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+
+CM_ BO_ 883 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 883 c_ecu_egt1 "EGT Sensor 1";
+CM_ SG_ 883 c_ecu_egt2 "EGT Sensor 2";
+CM_ SG_ 883 c_ecu_egt3 "EGT Sensor 3";
+CM_ SG_ 883 c_ecu_egt4 "EGT Sensor 4";
+
+BO_ 884 Haltech_0x374: 8 HaltechECU
+ SG_ c_ecu_egt5 : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt6 : 23|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt7 : 39|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt8 : 55|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+
+CM_ BO_ 884 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 884 c_ecu_egt5 "EGT Sensor 5";
+CM_ SG_ 884 c_ecu_egt6 "EGT Sensor 6";
+CM_ SG_ 884 c_ecu_egt7 "EGT Sensor 7";
+CM_ SG_ 884 c_ecu_egt8 "EGT Sensor 8";
+
+BO_ 885 Haltech_0x375: 8 HaltechECU
+ SG_ c_ecu_egt9 : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt10 : 23|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt11 : 39|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_egt12 : 55|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+
+CM_ BO_ 885 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 885 c_ecu_egt9 "EGT Sensor 9";
+CM_ SG_ 885 c_ecu_egt10 "EGT Sensor 10";
+CM_ SG_ 885 c_ecu_egt11 "EGT Sensor 11";
+CM_ SG_ 885 c_ecu_egt12 "EGT Sensor 12";
+
+BO_ 886 Haltech_0x376: 8 HaltechECU
+ SG_ c_ecu_ambientAirTemp : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_relativeHumidity : 23|16@0- (0.1,0) [-3276.8|3276.7] "%" Vector__XXX
+ SG_ c_ecu_specificHumidity : 39|16@0+ (100,0) [0|6553500] "ppm" Vector__XXX
+ SG_ c_ecu_absoluteHumidity : 55|16@0+ (0.1,0) [0|6553.5] "g/m3" Vector__XXX
+
+CM_ BO_ 886 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 886 c_ecu_ambientAirTemp "Ambient Air Temperature";
+CM_ SG_ 886 c_ecu_relativeHumidity "Relative Humidity";
+CM_ SG_ 886 c_ecu_specificHumidity "Specific Humidity";
+CM_ SG_ 886 c_ecu_absoluteHumidity "Absolute Humidity";
+
+BO_ 887 Haltech_0x377: 8 HaltechECU
+ SG_ c_ecu_boostPressurePreIC : 7|16@0+ (0.1,0) [0|6553.5] "kPa" Vector__XXX
+
+CM_ BO_ 887 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 887 c_ecu_boostPressurePreIC "Boost Pressure Pre Intercooler";
+
+BO_ 896 Haltech_0x380: 8 HaltechECU
+ SG_ c_ecu_genericOutput1Value : 7|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericOutput2Value : 23|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericOutput3Value : 39|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericOutput4Value : 55|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+
+CM_ BO_ 896 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 896 c_ecu_genericOutput1Value "Generic Output 1 Value";
+CM_ SG_ 896 c_ecu_genericOutput2Value "Generic Output 2 Value";
+CM_ SG_ 896 c_ecu_genericOutput3Value "Generic Output 3 Value";
+CM_ SG_ 896 c_ecu_genericOutput4Value "Generic Output 4 Value";
+
+BO_ 992 Haltech_0x3E0: 8 HaltechECU
+ SG_ c_ecu_clt : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_iat : 23|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_fuelTemp : 39|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_oilTemp : 55|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+
+CM_ BO_ 992 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 992 c_ecu_clt "Coolant Temperature";
+CM_ SG_ 992 c_ecu_iat "Air Temperature";
+CM_ SG_ 992 c_ecu_fuelTemp "Fuel Temperature";
+CM_ SG_ 992 c_ecu_oilTemp "Oil Temperature";
+
+BO_ 993 Haltech_0x3E1: 8 HaltechECU
+ SG_ c_ecu_gearboxOilTemp : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_diffOilTemp : 23|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_ethanolContent : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_preICTemp : 55|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+
+CM_ BO_ 993 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 993 c_ecu_gearboxOilTemp "Gearbox Oil Temperature";
+CM_ SG_ 993 c_ecu_diffOilTemp "Diff Oil Temperature";
+CM_ SG_ 993 c_ecu_ethanolContent "Fuel Composition";
+CM_ SG_ 993 c_ecu_preICTemp "Air Temperature Pre Intercooler";
+
+BO_ 994 Haltech_0x3E2: 8 HaltechECU
+ SG_ c_ecu_fuelLevelLitres1 : 7|16@0+ (0.1,0) [0|6553.5] "L" Vector__XXX
+ SG_ c_ecu_fuelVolumeEstimatedFlow : 23|16@0- (0.1,0) [-3276.8|3276.7] "cc/min" Vector__XXX
+ SG_ c_ecu_avgFuelEconomy : 39|16@0+ (0.1,0) [0|6553.5] "km/L" Vector__XXX
+ SG_ c_ecu_fuelLevelLitres2 : 55|16@0+ (0.1,0) [0|6553.5] "L" Vector__XXX
+
+CM_ BO_ 994 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 994 c_ecu_fuelLevelLitres1 "Fuel Level";
+CM_ SG_ 994 c_ecu_fuelVolumeEstimatedFlow "Fuel Volume Estimated Flow";
+CM_ SG_ 994 c_ecu_avgFuelEconomy "Average Fuel Consumption Mileage";
+CM_ SG_ 994 c_ecu_fuelLevelLitres2 "Fuel Level";
+
+BO_ 995 Haltech_0x3E3: 8 HaltechECU
+ SG_ c_ecu_fuelTrimShortBank1 : 7|16@0- (0.1,0) [-3276.8|3276.7] "%" Vector__XXX
+ SG_ c_ecu_fuelTrimShortBank2 : 23|16@0- (0.1,0) [-3276.8|3276.7] "%" Vector__XXX
+ SG_ c_ecu_fuelTrimLongBank1 : 39|16@0- (0.1,0) [-3276.8|3276.7] "%" Vector__XXX
+ SG_ c_ecu_fuelTrimLongBank2 : 55|16@0- (0.1,0) [-3276.8|3276.7] "%" Vector__XXX
+
+CM_ BO_ 995 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 995 c_ecu_fuelTrimShortBank1 "Fuel Trim Short Term Bank 1";
+CM_ SG_ 995 c_ecu_fuelTrimShortBank2 "Fuel Trim Short Term Bank 2";
+CM_ SG_ 995 c_ecu_fuelTrimLongBank1 "Fuel Trim Long Term Bank 1";
+CM_ SG_ 995 c_ecu_fuelTrimLongBank2 "Fuel Trim Long Term Bank 2";
+
+BO_ 996 Haltech_0x3E4: 8 HaltechECU
+ SG_ c_ecu_neutralSwitch : 15|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_reverseSwitch : 14|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_gearSwitch : 13|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_decelCutActive : 12|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_transientThrottleActive : 11|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_brakePedalSwitch : 10|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_clutchSwitch : 9|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_oilPressureLight : 8|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_launchControlActive : 23|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_launchControlSwitch : 22|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_auxRPMLimiterActive : 21|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_brakeFluidLevelSwitch : 20|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_flatShiftSwitch : 19|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_clutchPressureSensor : 18|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_torqueReductionActive : 17|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tractionControlEnabled : 31|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tractionControlActive : 30|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_airConRequest : 29|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_airConOutput : 28|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_thermofan4On : 27|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_thermofan3On : 26|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_thermofan2On : 25|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_thermofan1On : 24|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_rotaryTrimPot1 : 39|8@0- (1,0) [-128|127] "raw" Vector__XXX
+ SG_ c_ecu_rotaryTrimPot2 : 47|8@0- (1,0) [-128|127] "raw" Vector__XXX
+ SG_ c_ecu_rotaryTrimPot3 : 55|8@0- (1,0) [-128|127] "raw" Vector__XXX
+ SG_ c_ecu_checkEngineLight : 63|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_batteryLight : 62|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_handBrakeState : 57|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tractionControlLight : 56|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+
+CM_ BO_ 996 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 996 c_ecu_neutralSwitch "Neutral Switch";
+CM_ SG_ 996 c_ecu_reverseSwitch "Reverse Switch";
+CM_ SG_ 996 c_ecu_gearSwitch "Gear Switch";
+CM_ SG_ 996 c_ecu_decelCutActive "Decel Cut Active";
+CM_ SG_ 996 c_ecu_transientThrottleActive "Transient Throttle Active";
+CM_ SG_ 996 c_ecu_brakePedalSwitch "Brake Pedal Switch";
+CM_ SG_ 996 c_ecu_clutchSwitch "Clutch Switch";
+CM_ SG_ 996 c_ecu_oilPressureLight "Oil Pressure Light";
+CM_ SG_ 996 c_ecu_launchControlActive "Launch Control Active";
+CM_ SG_ 996 c_ecu_launchControlSwitch "Launch Control Switch";
+CM_ SG_ 996 c_ecu_auxRPMLimiterActive "Aux RPM Limiter Active";
+CM_ SG_ 996 c_ecu_brakeFluidLevelSwitch "Brake Fluid Level Switch";
+CM_ SG_ 996 c_ecu_flatShiftSwitch "Flat Shift Switch";
+CM_ SG_ 996 c_ecu_clutchPressureSensor "Clutch Pressure Sensor state";
+CM_ SG_ 996 c_ecu_torqueReductionActive "Torque Reduction Active";
+CM_ SG_ 996 c_ecu_tractionControlEnabled "Traction Control Enabled";
+CM_ SG_ 996 c_ecu_tractionControlActive "Traction Control Active";
+CM_ SG_ 996 c_ecu_airConRequest "Air Con Request";
+CM_ SG_ 996 c_ecu_airConOutput "Air Con Output";
+CM_ SG_ 996 c_ecu_thermofan4On "Thermo-fan 4 On";
+CM_ SG_ 996 c_ecu_thermofan3On "Thermo-fan 3 On";
+CM_ SG_ 996 c_ecu_thermofan2On "Thermo-fan 2 On";
+CM_ SG_ 996 c_ecu_thermofan1On "Thermo-fan 1 On";
+CM_ SG_ 996 c_ecu_rotaryTrimPot1 "Rotary Trim Pot 1";
+CM_ SG_ 996 c_ecu_rotaryTrimPot2 "Rotary Trim Pot 2";
+CM_ SG_ 996 c_ecu_rotaryTrimPot3 "Rotary Trim Pot 3";
+CM_ SG_ 996 c_ecu_checkEngineLight "Check Engine Light";
+CM_ SG_ 996 c_ecu_batteryLight "Battery Light Active";
+CM_ SG_ 996 c_ecu_handBrakeState "Hand Brake State";
+CM_ SG_ 996 c_ecu_tractionControlLight "Traction Control Light";
+
+BO_ 997 Haltech_0x3E5: 8 HaltechECU
+ SG_ c_ecu_ignitionSwitch : 7|8@0+ (1,0) [0|255] "boolean" Vector__XXX
+ SG_ c_ecu_turboTimerTimeRemaining : 15|8@0+ (1,0) [0|255] "s" Vector__XXX
+ SG_ c_ecu_turboTimerEngineTimeRemaining : 23|8@0+ (1,0) [0|255] "s" Vector__XXX
+ SG_ c_ecu_pitLaneSpeedLimiterError : 30|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_pitLaneSpeedLimiterActive : 29|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_pitLaneSpeedLimiterSwitch : 28|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_absError : 26|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_absActive : 25|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_absArmed : 24|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_steeringWheelAngle : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ c_ecu_driveshaftRPM : 55|16@0+ (1,0) [0|65535] "rpm" Vector__XXX
+
+CM_ BO_ 997 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 997 c_ecu_ignitionSwitch "Ignition Switch";
+CM_ SG_ 997 c_ecu_turboTimerTimeRemaining "Turbo Timer - Time Remaining";
+CM_ SG_ 997 c_ecu_turboTimerEngineTimeRemaining "Turbo Timer - Engine Time Remaining";
+CM_ SG_ 997 c_ecu_pitLaneSpeedLimiterError "Pit Lane Speed Limiter Error";
+CM_ SG_ 997 c_ecu_pitLaneSpeedLimiterActive "Pit Lane Speed Limiter Active";
+CM_ SG_ 997 c_ecu_pitLaneSpeedLimiterSwitch "Pit Lane Speed Limiter Switch State";
+CM_ SG_ 997 c_ecu_absError "ABS Error";
+CM_ SG_ 997 c_ecu_absActive "ABS Active";
+CM_ SG_ 997 c_ecu_absArmed "ABS Armed";
+CM_ SG_ 997 c_ecu_steeringWheelAngle "Steering Wheel Angle";
+CM_ SG_ 997 c_ecu_driveshaftRPM "Driveshaft RPM";
+
+BO_ 998 Haltech_0x3E6: 8 HaltechECU
+ SG_ c_ecu_NOSPress2 : 7|16@0+ (0.22,-101.3) [-101.3|14316.4] "kPa" Vector__XXX
+ SG_ c_ecu_NOSPress3 : 23|16@0+ (0.22,-101.3) [-101.3|14316.4] "kPa" Vector__XXX
+ SG_ c_ecu_NOSPress4 : 39|16@0+ (0.22,-101.3) [-101.3|14316.4] "kPa" Vector__XXX
+ SG_ c_ecu_turboSpeed2 : 55|16@0+ (10,0) [0|655350] "rpm" Vector__XXX
+
+CM_ BO_ 998 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 998 c_ecu_NOSPress2 "NOS Pressure Sensor 2";
+CM_ SG_ 998 c_ecu_NOSPress3 "NOS Pressure Sensor 3";
+CM_ SG_ 998 c_ecu_NOSPress4 "NOS Pressure Sensor 4";
+CM_ SG_ 998 c_ecu_turboSpeed2 "Turbo Speed Sensor 2";
+
+BO_ 999 Haltech_0x3E7: 8 HaltechECU
+ SG_ c_ecu_genericSensor1 : 7|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor2 : 23|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor3 : 39|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor4 : 55|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+
+CM_ BO_ 999 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 999 c_ecu_genericSensor1 "Generic Sensor 1; configured sensor type determines scaling";
+CM_ SG_ 999 c_ecu_genericSensor2 "Generic Sensor 2; configured sensor type determines scaling";
+CM_ SG_ 999 c_ecu_genericSensor3 "Generic Sensor 3; configured sensor type determines scaling";
+CM_ SG_ 999 c_ecu_genericSensor4 "Generic Sensor 4; configured sensor type determines scaling";
+
+BO_ 1000 Haltech_0x3E8: 8 HaltechECU
+ SG_ c_ecu_genericSensor5 : 7|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor6 : 23|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor7 : 39|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor8 : 55|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+
+CM_ BO_ 1000 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1000 c_ecu_genericSensor5 "Generic Sensor 5; configured sensor type determines scaling";
+CM_ SG_ 1000 c_ecu_genericSensor6 "Generic Sensor 6; configured sensor type determines scaling";
+CM_ SG_ 1000 c_ecu_genericSensor7 "Generic Sensor 7; configured sensor type determines scaling";
+CM_ SG_ 1000 c_ecu_genericSensor8 "Generic Sensor 8; configured sensor type determines scaling";
+
+BO_ 1001 Haltech_0x3E9: 8 HaltechECU
+ SG_ c_ecu_genericSensor9 : 7|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_genericSensor10 : 23|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_lambdaTarget : 39|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_nitrousStage1Output : 55|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousStage2Output : 54|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousStage3Output : 53|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousStage4Output : 52|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousStage5Output : 51|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousStage6Output : 50|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_waterInjectionAdvancedOutput : 49|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_torqueManagementKnob : 63|8@0- (1,0) [-128|127] "raw" Vector__XXX
+
+CM_ BO_ 1001 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1001 c_ecu_genericSensor9 "Generic Sensor 9; configured sensor type determines scaling";
+CM_ SG_ 1001 c_ecu_genericSensor10 "Generic Sensor 10; configured sensor type determines scaling";
+CM_ SG_ 1001 c_ecu_lambdaTarget "Target Lambda";
+CM_ SG_ 1001 c_ecu_nitrousStage1Output "Nitrous Stage 1 Output State";
+CM_ SG_ 1001 c_ecu_nitrousStage2Output "Nitrous Stage 2 Output State";
+CM_ SG_ 1001 c_ecu_nitrousStage3Output "Nitrous Stage 3 Output State";
+CM_ SG_ 1001 c_ecu_nitrousStage4Output "Nitrous Stage 4 Output State";
+CM_ SG_ 1001 c_ecu_nitrousStage5Output "Nitrous Stage 5 Output State";
+CM_ SG_ 1001 c_ecu_nitrousStage6Output "Nitrous Stage 6 Output State";
+CM_ SG_ 1001 c_ecu_waterInjectionAdvancedOutput "Water Injection Advanced Output State";
+CM_ SG_ 1001 c_ecu_torqueManagementKnob "Torque Management Knob";
+
+BO_ 1002 Haltech_0x3EA: 8 HaltechECU
+ SG_ c_ecu_gearboxLinePress : 7|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_injDC3 : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_injDC4 : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_crankCasePress : 55|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+
+CM_ BO_ 1002 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1002 c_ecu_gearboxLinePress "Gearbox Line Pressure";
+CM_ SG_ 1002 c_ecu_injDC3 "Injection Stage 3 Duty Cycle";
+CM_ SG_ 1002 c_ecu_injDC4 "Injection Stage 4 Duty Cycle";
+CM_ SG_ 1002 c_ecu_crankCasePress "Crank Case Pressure";
+
+BO_ 1003 Haltech_0x3EB: 8 HaltechECU
+ SG_ c_ecu_raceTimer : 7|32@0+ (1,0) [0|4294967295] "ms" Vector__XXX
+ SG_ c_ecu_ignAngleBank1 : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ c_ecu_ignAngleBank2 : 55|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+CM_ BO_ 1003 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1003 c_ecu_raceTimer "Race Timer";
+CM_ SG_ 1003 c_ecu_ignAngleBank1 "Ignition Angle Bank 1";
+CM_ SG_ 1003 c_ecu_ignAngleBank2 "Ignition Angle Bank 2";
+
+BO_ 1004 Haltech_0x3EC: 8 HaltechECU
+ SG_ c_ecu_tmDriveshaftRPMTarget : 7|16@0- (1,0) [-32768|32767] "rpm" Vector__XXX
+ SG_ c_ecu_tmDriveshaftRPMTargetError : 23|16@0- (1,0) [-32768|32767] "rpm" Vector__XXX
+ SG_ c_ecu_tmDriveshaftRPMTargetErrorIgnCorr : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ c_ecu_tmDriveshaftRPMTimedIgnCorr : 55|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+CM_ BO_ 1004 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1004 c_ecu_tmDriveshaftRPMTarget "Torque Management Driveshaft RPM Target";
+CM_ SG_ 1004 c_ecu_tmDriveshaftRPMTargetError "Torque Management Driveshaft RPM Target Error";
+CM_ SG_ 1004 c_ecu_tmDriveshaftRPMTargetErrorIgnCorr "Torque Management Driveshaft RPM Target Error Ignition Correction";
+CM_ SG_ 1004 c_ecu_tmDriveshaftRPMTimedIgnCorr "Torque Management Driveshaft RPM Timed Ignition Correction";
+
+BO_ 1005 Haltech_0x3ED: 8 HaltechECU
+ SG_ c_ecu_tmCombinedIgnCorr : 7|16@0- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+CM_ BO_ 1005 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1005 c_ecu_tmCombinedIgnCorr "Torque Management Combined Ignition Correction";
+
+BO_ 1006 Haltech_0x3EE: 8 HaltechECU
+ SG_ c_ecu_lambda5 : 7|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda6 : 23|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda7 : 39|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda8 : 55|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+
+CM_ BO_ 1006 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1006 c_ecu_lambda5 "Wideband Sensor 5";
+CM_ SG_ 1006 c_ecu_lambda6 "Wideband Sensor 6";
+CM_ SG_ 1006 c_ecu_lambda7 "Wideband Sensor 7";
+CM_ SG_ 1006 c_ecu_lambda8 "Wideband Sensor 8";
+
+BO_ 1007 Haltech_0x3EF: 8 HaltechECU
+ SG_ c_ecu_lambda9 : 7|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda10 : 23|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda11 : 39|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambda12 : 55|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+
+CM_ BO_ 1007 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1007 c_ecu_lambda9 "Wideband Sensor 9";
+CM_ SG_ 1007 c_ecu_lambda10 "Wideband Sensor 10";
+CM_ SG_ 1007 c_ecu_lambda11 "Wideband Sensor 11";
+CM_ SG_ 1007 c_ecu_lambda12 "Wideband Sensor 12";
+
+BO_ 1008 Haltech_0x3F0: 8 HaltechECU
+ SG_ c_ecu_shockTravelFLUncal : 7|16@0+ (0.1,0) [0|6553.5] "mm" Vector__XXX
+ SG_ c_ecu_shockTravelFRUncal : 23|16@0+ (0.1,0) [0|6553.5] "mm" Vector__XXX
+ SG_ c_ecu_shockTravelRLUncal : 39|16@0+ (0.1,0) [0|6553.5] "mm" Vector__XXX
+ SG_ c_ecu_shockTravelRRUncal : 55|16@0+ (0.1,0) [0|6553.5] "mm" Vector__XXX
+
+CM_ BO_ 1008 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1008 c_ecu_shockTravelFLUncal "Shock Travel Sensor Front Left (Uncalibrated)";
+CM_ SG_ 1008 c_ecu_shockTravelFRUncal "Shock Travel Sensor Front Right (Uncalibrated)";
+CM_ SG_ 1008 c_ecu_shockTravelRLUncal "Shock Travel Sensor Rear Left (Uncalibrated)";
+CM_ SG_ 1008 c_ecu_shockTravelRRUncal "Shock Travel Sensor Rear Right (Uncalibrated)";
+
+BO_ 1009 Haltech_0x3F1: 8 HaltechECU
+ SG_ c_ecu_shockTravelFL : 7|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_shockTravelFR : 23|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_shockTravelRL : 39|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_shockTravelRR : 55|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+
+CM_ BO_ 1009 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1009 c_ecu_shockTravelFL "Shock Travel Sensor Front Left";
+CM_ SG_ 1009 c_ecu_shockTravelFR "Shock Travel Sensor Front Right";
+CM_ SG_ 1009 c_ecu_shockTravelRL "Shock Travel Sensor Rear Left";
+CM_ SG_ 1009 c_ecu_shockTravelRR "Shock Travel Sensor Rear Right";
+
+BO_ 1010 Haltech_0x3F2: 8 HaltechECU
+ SG_ c_ecu_rideHeightFront : 7|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_rideHeightFrontUncal : 23|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_rideHeightFrontDerivative : 39|16@0- (0.1,0) [-3276.8|3276.7] "mm/s" Vector__XXX
+
+CM_ BO_ 1010 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1010 c_ecu_rideHeightFront "Ride Height Sensor Front; raw 0 indicates error";
+CM_ SG_ 1010 c_ecu_rideHeightFrontUncal "Ride Height Sensor Front Uncalibrated; raw 0 indicates error";
+CM_ SG_ 1010 c_ecu_rideHeightFrontDerivative "Ride Height Sensor Front Derivative; raw 0 indicates error";
+
+BO_ 1011 Haltech_0x3F3: 8 HaltechECU
+ SG_ c_ecu_rideHeightRear : 7|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_rideHeightRearUncal : 23|16@0- (0.1,0) [-3276.8|3276.7] "mm" Vector__XXX
+ SG_ c_ecu_rideHeightRearDerivative : 39|16@0- (0.1,0) [-3276.8|3276.7] "mm/s" Vector__XXX
+
+CM_ BO_ 1011 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1011 c_ecu_rideHeightRear "Ride Height Sensor Rear; raw 0 indicates error";
+CM_ SG_ 1011 c_ecu_rideHeightRearUncal "Ride Height Sensor Rear Uncalibrated; raw 0 indicates error";
+CM_ SG_ 1011 c_ecu_rideHeightRearDerivative "Ride Height Sensor Rear Derivative; raw 0 indicates error";
+
+BO_ 1129 Haltech_0x469: 8 HaltechECU
+ SG_ c_ecu_ecuTemp : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_oilLevel : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+
+CM_ BO_ 1129 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1129 c_ecu_ecuTemp "ECU Temperature";
+CM_ SG_ 1129 c_ecu_oilLevel "Oil Level Percentage";
+
+BO_ 1136 Haltech_0x470: 8 HaltechECU
+ SG_ c_ecu_lambdaOverall : 7|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambdaBank1 : 23|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_lambdaBank2 : 39|16@0+ (0.001,0) [0|65.535] "lambda" Vector__XXX
+ SG_ c_ecu_selectorPosition : 55|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_gear : 63|8@0- (1,0) [-128|127] "enum" Vector__XXX
+
+CM_ BO_ 1136 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1136 c_ecu_lambdaOverall "Wideband Overall";
+CM_ SG_ 1136 c_ecu_lambdaBank1 "Wideband Bank 1";
+CM_ SG_ 1136 c_ecu_lambdaBank2 "Wideband Bank 2";
+CM_ SG_ 1136 c_ecu_selectorPosition "Gear Selector Position";
+CM_ SG_ 1136 c_ecu_gear "Gear";
+
+BO_ 1137 Haltech_0x471: 8 HaltechECU
+ SG_ c_ecu_fuelPressEffective : 7|16@0- (0.1,0) [-3276.8|3276.7] "kPa" Vector__XXX
+ SG_ c_ecu_accPedalPos : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_backPress : 39|16@0+ (0.1,0) [0|6553.5] "kPa" Vector__XXX
+
+CM_ BO_ 1137 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1137 c_ecu_fuelPressEffective "Injector Pressure Differential";
+CM_ SG_ 1137 c_ecu_accPedalPos "Accelerator Pedal Position";
+CM_ SG_ 1137 c_ecu_backPress "Exhaust Manifold Pressure";
+
+BO_ 1138 Haltech_0x472: 8 HaltechECU
+ SG_ c_ecu_cruiseTargetSpeed : 7|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ c_ecu_cruiseLastTargetSpeed : 23|16@0+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ c_ecu_cruiseSpeedError : 39|16@0- (0.1,0) [-3276.8|3276.7] "km/h" Vector__XXX
+ SG_ c_ecu_cruiseControllerState : 55|4@0+ (1,0) [0|15] "enum" Vector__XXX
+ SG_ c_ecu_cruiseInputState : 51|12@0+ (1,0) [0|4095] "bit-field" Vector__XXX
+
+CM_ BO_ 1138 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1138 c_ecu_cruiseTargetSpeed "Cruise Control Target Speed";
+CM_ SG_ 1138 c_ecu_cruiseLastTargetSpeed "Cruise Control Last Target Speed";
+CM_ SG_ 1138 c_ecu_cruiseSpeedError "Cruise Control Speed Error";
+CM_ SG_ 1138 c_ecu_cruiseControllerState "Cruise Control Controller State";
+CM_ SG_ 1138 c_ecu_cruiseInputState "Cruise Control Input State";
+
+BO_ 1139 Haltech_0x473: 8 HaltechECU
+ SG_ c_ecu_totalFuelUsed : 7|32@0+ (1,0) [0|4294967295] "cc" Vector__XXX
+ SG_ c_ecu_rollingAntilagSwitch : 39|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_antilagSwitch : 38|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_antilagOutput : 37|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tcSwitch : 36|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_primaryFuelPumpOutput : 35|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_aux1FuelPumpOutput : 34|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_aux2FuelPumpOutput : 33|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_aux3FuelPumpOutput : 32|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable1Switch : 47|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable1Output : 46|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable2Switch : 45|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable2Output : 44|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable3Switch : 43|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable3Output : 42|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable4Switch : 41|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousEnable4Output : 40|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride1Switch : 55|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride1Output : 54|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride2Switch : 53|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride2Output : 52|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride3Switch : 51|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride3Output : 50|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride4Switch : 49|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_nitrousOverride4Output : 48|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_waterInjEnableSwitch : 63|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_waterInjEnableOutput : 62|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_waterInjOverrideSwitch : 61|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_waterInjOverrideOutput : 60|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_cutPercentageMethod : 59|4@0+ (1,0) [0|15] "enum" Vector__XXX
+
+CM_ BO_ 1139 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 1139 c_ecu_totalFuelUsed "Total Fuel Used";
+CM_ SG_ 1139 c_ecu_rollingAntilagSwitch "Rolling Antilag Switch State";
+CM_ SG_ 1139 c_ecu_antilagSwitch "Antilag Switch State";
+CM_ SG_ 1139 c_ecu_antilagOutput "Antilag Output State";
+CM_ SG_ 1139 c_ecu_tcSwitch "Traction Control Switch State";
+CM_ SG_ 1139 c_ecu_primaryFuelPumpOutput "Primary Fuel Pump Output State";
+CM_ SG_ 1139 c_ecu_aux1FuelPumpOutput "Aux 1 Fuel Pump Output State";
+CM_ SG_ 1139 c_ecu_aux2FuelPumpOutput "Aux 2 Fuel Pump Output State";
+CM_ SG_ 1139 c_ecu_aux3FuelPumpOutput "Aux 3 Fuel Pump Output State";
+CM_ SG_ 1139 c_ecu_nitrousEnable1Switch "Nitrous Enable 1 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousEnable1Output "Nitrous Enable 1 Output State";
+CM_ SG_ 1139 c_ecu_nitrousEnable2Switch "Nitrous Enable 2 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousEnable2Output "Nitrous Enable 2 Output State";
+CM_ SG_ 1139 c_ecu_nitrousEnable3Switch "Nitrous Enable 3 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousEnable3Output "Nitrous Enable 3 Output State";
+CM_ SG_ 1139 c_ecu_nitrousEnable4Switch "Nitrous Enable 4 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousEnable4Output "Nitrous Enable 4 Output State";
+CM_ SG_ 1139 c_ecu_nitrousOverride1Switch "Nitrous Override 1 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousOverride1Output "Nitrous Override 1 Output State";
+CM_ SG_ 1139 c_ecu_nitrousOverride2Switch "Nitrous Override 2 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousOverride2Output "Nitrous Override 2 Output State";
+CM_ SG_ 1139 c_ecu_nitrousOverride3Switch "Nitrous Override 3 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousOverride3Output "Nitrous Override 3 Output State";
+CM_ SG_ 1139 c_ecu_nitrousOverride4Switch "Nitrous Override 4 Switch State";
+CM_ SG_ 1139 c_ecu_nitrousOverride4Output "Nitrous Override 4 Output State";
+CM_ SG_ 1139 c_ecu_waterInjEnableSwitch "Water Injection Advanced Enable Switch State";
+CM_ SG_ 1139 c_ecu_waterInjEnableOutput "Water Injection Advanced Enable Output State";
+CM_ SG_ 1139 c_ecu_waterInjOverrideSwitch "Water Injection Advanced Override Switch State";
+CM_ SG_ 1139 c_ecu_waterInjOverrideOutput "Water Injection Advanced Override Output State";
+CM_ SG_ 1139 c_ecu_cutPercentageMethod "Cut Percentage Method";
+
+BO_ 1140 Haltech_0x474: 8 HaltechECU
+ SG_ c_ecu_verticalG : 7|16@0- (0.1,0) [-3276.8|3276.7] "m/s2" Vector__XXX
+ SG_ c_ecu_pitchRate : 23|16@0- (0.1,0) [-3276.8|3276.7] "deg/s" Vector__XXX
+ SG_ c_ecu_rollRate : 39|16@0- (0.1,0) [-3276.8|3276.7] "deg/s" Vector__XXX
+ SG_ c_ecu_yawRate : 55|16@0- (0.1,0) [-3276.8|3276.7] "deg/s" Vector__XXX
+
+CM_ BO_ 1140 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1140 c_ecu_verticalG "Vertical G";
+CM_ SG_ 1140 c_ecu_pitchRate "Pitch Rate";
+CM_ SG_ 1140 c_ecu_rollRate "Roll Rate";
+CM_ SG_ 1140 c_ecu_yawRate "Yaw Rate";
+
+BO_ 1141 Haltech_0x475: 8 HaltechECU
+ SG_ c_ecu_primaryFuelPumpDC : 7|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_aux1FuelPumpDC : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_aux2FuelPumpDC : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_aux3FuelPumpDC : 55|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+
+CM_ BO_ 1141 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1141 c_ecu_primaryFuelPumpDC "Primary Fuel Pump Duty Cycle";
+CM_ SG_ 1141 c_ecu_aux1FuelPumpDC "Aux 1 Fuel Pump Duty Cycle";
+CM_ SG_ 1141 c_ecu_aux2FuelPumpDC "Aux 2 Fuel Pump Duty Cycle";
+CM_ SG_ 1141 c_ecu_aux3FuelPumpDC "Aux 3 Fuel Pump Duty Cycle";
+
+BO_ 1142 Haltech_0x476: 8 HaltechECU
+ SG_ c_ecu_brakePressRear : 7|16@0+ (1,-101.3) [-101.3|65433.7] "kPa" Vector__XXX
+ SG_ c_ecu_brakePressFrontRatio : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_brakePressRearRatio : 39|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_brakePressDiff : 55|16@0- (1,0) [-32768|32767] "kPa" Vector__XXX
+
+CM_ BO_ 1142 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1142 c_ecu_brakePressRear "Brake Pressure Rear";
+CM_ SG_ 1142 c_ecu_brakePressFrontRatio "Brake Pressure Front Ratio";
+CM_ SG_ 1142 c_ecu_brakePressRearRatio "Brake Pressure Rear Ratio";
+CM_ SG_ 1142 c_ecu_brakePressDiff "Brake Pressure Difference Front minus Rear";
+
+BO_ 1143 Haltech_0x477: 8 HaltechECU
+ SG_ c_ecu_engineLimiterMaxRPM : 7|16@0+ (1,0) [0|65535] "rpm" Vector__XXX
+ SG_ c_ecu_cutPercentage : 23|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+ SG_ c_ecu_engineLimiterFunction : 39|8@0+ (1,0) [0|255] "enum" Vector__XXX
+ SG_ c_ecu_rpmLimiterFunction : 47|8@0+ (1,0) [0|255] "enum" Vector__XXX
+ SG_ c_ecu_cutPercentageFunction : 55|8@0+ (1,0) [0|255] "enum" Vector__XXX
+ SG_ c_ecu_engineLimiterMethod : 63|4@0+ (1,0) [0|15] "enum" Vector__XXX
+ SG_ c_ecu_rpmLimiterMethod : 59|4@0+ (1,0) [0|15] "enum" Vector__XXX
+
+CM_ BO_ 1143 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 1143 c_ecu_engineLimiterMaxRPM "Engine Limiter Max RPM";
+CM_ SG_ 1143 c_ecu_cutPercentage "Cut Percentage";
+CM_ SG_ 1143 c_ecu_engineLimiterFunction "Engine Limiter Function";
+CM_ SG_ 1143 c_ecu_rpmLimiterFunction "RPM Limiter Function";
+CM_ SG_ 1143 c_ecu_cutPercentageFunction "Cut Percentage Function";
+CM_ SG_ 1143 c_ecu_engineLimiterMethod "Engine Limiter Method";
+CM_ SG_ 1143 c_ecu_rpmLimiterMethod "RPM Limiter Method";
+
+BO_ 1776 Haltech_0x6F0: 8 HaltechECU
+ SG_ c_ecu_tyrePressFL : 7|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_tyrePressFR : 23|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_tyrePressRL : 39|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_tyrePressRR : 55|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+
+CM_ BO_ 1776 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1776 c_ecu_tyrePressFL "Front Left Tyre Pressure; raw 0 indicates error";
+CM_ SG_ 1776 c_ecu_tyrePressFR "Front Right Tyre Pressure; raw 0 indicates error";
+CM_ SG_ 1776 c_ecu_tyrePressRL "Rear Left Tyre Pressure; raw 0 indicates error";
+CM_ SG_ 1776 c_ecu_tyrePressRR "Rear Right Tyre Pressure; raw 0 indicates error";
+
+BO_ 1777 Haltech_0x6F1: 8 HaltechECU
+ SG_ c_ecu_tyreTempFL : 7|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_tyreTempFR : 23|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_tyreTempRL : 39|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_tyreTempRR : 55|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+
+CM_ BO_ 1777 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1777 c_ecu_tyreTempFL "Front Left Tyre Temperature; raw 0 indicates error";
+CM_ SG_ 1777 c_ecu_tyreTempFR "Front Right Tyre Temperature; raw 0 indicates error";
+CM_ SG_ 1777 c_ecu_tyreTempRL "Rear Left Tyre Temperature; raw 0 indicates error";
+CM_ SG_ 1777 c_ecu_tyreTempRR "Rear Right Tyre Temperature; raw 0 indicates error";
+
+BO_ 1778 Haltech_0x6F2: 8 HaltechECU
+ SG_ c_ecu_tyreBatteryFL : 7|16@0+ (0.001,0) [0|65.535] "V" Vector__XXX
+ SG_ c_ecu_tyreBatteryFR : 23|16@0+ (0.001,0) [0|65.535] "V" Vector__XXX
+ SG_ c_ecu_tyreBatteryRL : 39|16@0+ (0.001,0) [0|65.535] "V" Vector__XXX
+ SG_ c_ecu_tyreBatteryRR : 55|16@0+ (0.001,0) [0|65.535] "V" Vector__XXX
+
+CM_ BO_ 1778 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1778 c_ecu_tyreBatteryFL "Front Left Tyre Sensor Battery Voltage; raw 0 indicates error";
+CM_ SG_ 1778 c_ecu_tyreBatteryFR "Front Right Tyre Sensor Battery Voltage; raw 0 indicates error";
+CM_ SG_ 1778 c_ecu_tyreBatteryRL "Rear Left Tyre Sensor Battery Voltage; raw 0 indicates error";
+CM_ SG_ 1778 c_ecu_tyreBatteryRR "Rear Right Tyre Sensor Battery Voltage; raw 0 indicates error";
+
+BO_ 1779 Haltech_0x6F3: 8 HaltechECU
+ SG_ c_ecu_tyreRecommendedPressFront : 7|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_tyreRecommendedPressRear : 23|16@0+ (0.1,-101.3) [-101.3|6452.2] "kPa" Vector__XXX
+ SG_ c_ecu_tyreLeakRR : 35|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tyreLeakRL : 34|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tyreLeakFR : 33|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_tyreLeakFL : 32|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_engineProtectionSeverity : 47|8@0+ (1,0) [0|255] "raw" Vector__XXX
+ SG_ c_ecu_engineProtectionReason : 55|16@0+ (1,0) [0|65535] "enum" Vector__XXX
+
+CM_ BO_ 1779 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1779 c_ecu_tyreRecommendedPressFront "Front Tyre Recommended Pressure";
+CM_ SG_ 1779 c_ecu_tyreRecommendedPressRear "Rear Tyre Recommended Pressure";
+CM_ SG_ 1779 c_ecu_tyreLeakRR "Rear Right Tyre Air Leak Detected";
+CM_ SG_ 1779 c_ecu_tyreLeakRL "Rear Left Tyre Air Leak Detected";
+CM_ SG_ 1779 c_ecu_tyreLeakFR "Front Right Tyre Air Leak Detected";
+CM_ SG_ 1779 c_ecu_tyreLeakFL "Front Left Tyre Air Leak Detected";
+CM_ SG_ 1779 c_ecu_engineProtectionSeverity "Engine Protection Severity Level";
+CM_ SG_ 1779 c_ecu_engineProtectionReason "Engine Protection Reason / OBDII DTC";
+
+BO_ 1780 Haltech_0x6F4: 8 HaltechECU
+ SG_ c_ecu_parkLightState : 0|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_headLightState : 1|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_highBeamState : 2|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_leftIndicatorState : 3|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_rightIndicatorState : 4|1@0+ (1,0) [0|1] "boolean" Vector__XXX
+ SG_ c_ecu_engineState : 11|4@0+ (1,0) [0|15] "enum" Vector__XXX
+
+CM_ BO_ 1780 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 100 Hz.";
+CM_ SG_ 1780 c_ecu_parkLightState "Park Light State";
+CM_ SG_ 1780 c_ecu_headLightState "Head Light State";
+CM_ SG_ 1780 c_ecu_highBeamState "High Beam Light State";
+CM_ SG_ 1780 c_ecu_leftIndicatorState "Left Indicator State";
+CM_ SG_ 1780 c_ecu_rightIndicatorState "Right Indicator State";
+CM_ SG_ 1780 c_ecu_engineState "Engine State";
+
+BO_ 1782 Haltech_0x6F6: 8 HaltechECU
+ SG_ c_ecu_totalFuelUsedTrip1 : 7|32@0- (1,0) [-2147483648|2147483647] "cc" Vector__XXX
+ SG_ c_ecu_tripMeter1 : 39|32@0- (1,0) [-2147483648|2147483647] "m" Vector__XXX
+
+CM_ BO_ 1782 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1782 c_ecu_totalFuelUsedTrip1 "Total Fuel Used Since Trip 1 Reset";
+CM_ SG_ 1782 c_ecu_tripMeter1 "Trip Meter 1";
+
+BO_ 1783 Haltech_0x6F7: 8 HaltechECU
+ SG_ c_ecu_genericOutputStates : 7|32@0+ (1,0) [0|4294967295] "bit-field" Vector__XXX
+ SG_ c_ecu_calculatedAirTemp : 39|16@0+ (0.1,0) [0|6553.5] "K" Vector__XXX
+ SG_ c_ecu_waterInjSolenoidDC : 55|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+
+CM_ BO_ 1783 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 10 Hz.";
+CM_ SG_ 1783 c_ecu_genericOutputStates "Generic Output 1-20 States";
+CM_ SG_ 1783 c_ecu_calculatedAirTemp "Calculated Air Temperature";
+CM_ SG_ 1783 c_ecu_waterInjSolenoidDC "Water Injection Advanced Solenoid Duty Cycle";
+
+BO_ 1784 Haltech_0x6F8: 8 HaltechECU
+ SG_ c_ecu_exhaustCutoutState : 7|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_nitrousBottleOpenerState : 15|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_genericOpenLoopMotor1State : 23|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_genericOpenLoopMotor2State : 31|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_genericOpenLoopMotor3State : 39|8@0- (1,0) [-128|127] "enum" Vector__XXX
+ SG_ c_ecu_fuelLevelPercentage0 : 55|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+
+CM_ BO_ 1784 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1784 c_ecu_exhaustCutoutState "Exhaust Cutout State";
+CM_ SG_ 1784 c_ecu_nitrousBottleOpenerState "Nitrous Bottle Opener State";
+CM_ SG_ 1784 c_ecu_genericOpenLoopMotor1State "Generic Open Loop Motor Control 1 State";
+CM_ SG_ 1784 c_ecu_genericOpenLoopMotor2State "Generic Open Loop Motor Control 2 State";
+CM_ SG_ 1784 c_ecu_genericOpenLoopMotor3State "Generic Open Loop Motor Control 3 State";
+CM_ SG_ 1784 c_ecu_fuelLevelPercentage0 "Fuel Level Percentage 0";
+
+BO_ 1785 Haltech_0x6F9: 8 HaltechECU
+ SG_ c_ecu_fuelLevelPercentage1 : 7|16@0+ (0.1,0) [0|6553.5] "%" Vector__XXX
+
+CM_ BO_ 1785 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 5 Hz.";
+CM_ SG_ 1785 c_ecu_fuelLevelPercentage1 "Fuel Level Percentage 1";
+
+BO_ 1791 Haltech_0x6FF: 8 HaltechECU
+ SG_ c_ecu_torqueConverterPress : 7|16@0- (0.1,-101.3) [-3378.1|3175.4] "kPa" Vector__XXX
+ SG_ c_ecu_transferCasePress : 23|16@0- (0.1,-101.3) [-3378.1|3175.4] "kPa" Vector__XXX
+ SG_ c_ecu_acPress : 39|16@0- (0.1,-101.3) [-3378.1|3175.4] "kPa" Vector__XXX
+ SG_ c_ecu_powersteerPress : 55|16@0- (0.01,-101.3) [-428.98|226.37] "kPa" Vector__XXX
+
+CM_ BO_ 1791 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ SG_ 1791 c_ecu_torqueConverterPress "Torque Converter Pressure; raw 0 indicates error";
+CM_ SG_ 1791 c_ecu_transferCasePress "Transfer Case Pressure; raw 0 indicates error";
+CM_ SG_ 1791 c_ecu_acPress "Air Conditioner Pressure; raw 0 indicates error";
+CM_ SG_ 1791 c_ecu_powersteerPress "Power Steering Pressure; raw 0 indicates error";
+
+BO_ 1792 Haltech_0x700: 8 HaltechECU
+ SG_ c_ecu_r5PDMWord0 : 7|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_r5PDMWord1 : 23|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_r5PDMWord2 : 39|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+ SG_ c_ecu_r5PDMWord3 : 55|16@0+ (1,0) [0|65535] "raw" Vector__XXX
+
+CM_ BO_ 1792 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 50 Hz.";
+CM_ SG_ 1792 c_ecu_r5PDMWord0 "Internal R5 PDM data; see Haltech Multiplexed CAN protocol";
+CM_ SG_ 1792 c_ecu_r5PDMWord1 "Internal R5 PDM data";
+CM_ SG_ 1792 c_ecu_r5PDMWord2 "Internal R5 PDM data";
+CM_ SG_ 1792 c_ecu_r5PDMWord3 "Internal R5 PDM data";
+
+BO_ 1793 Haltech_0x701: 8 HaltechECU
+ SG_ c_ecu_fuelConsumptionAvgEconomy : 7|16@0+ (0.1,0) [0|6553.5] "L/100km" Vector__XXX
+ SG_ c_ecu_fuelConsumptionInstantEconomy : 23|16@0+ (0.1,0) [0|6553.5] "L/100km" Vector__XXX
+ SG_ c_ecu_acTemp : 39|16@0- (0.1,0) [-3276.8|3276.7] "K" Vector__XXX
+
+CM_ BO_ 1793 "Haltech ECU Broadcast CAN Protocol v2.0; nominal rate 20 Hz.";
+CM_ BO_ 1793 "Haltech v2.0 documents Fuel Consumption Instantaneous Mileage at bytes 5-6, overlapping the documented 4-5 Air Conditioner Temperature field. Omitted rather than guessed.";
+CM_ SG_ 1793 c_ecu_fuelConsumptionAvgEconomy "Fuel Consumption Average Economy";
+CM_ SG_ 1793 c_ecu_fuelConsumptionInstantEconomy "Fuel Consumption Instantaneous Economy";
+CM_ SG_ 1793 c_ecu_acTemp "Air Conditioner Temperature";
+
+VAL_ 880 c_ecu_gear 0 "Neutral" -1 "Reverse" -2 "Park" -3 "Unknown" -4 "Drive" -5 "Sport" -6 "Manual" -7 "Low" -8 "Overdrive" ;
+VAL_ 880 c_ecu_selectorPosition 0 "Neutral" -1 "Reverse" -2 "Park" -3 "Unknown" -4 "Drive" -5 "Sport" -6 "Manual" -7 "Low" -8 "Overdrive" ;
+VAL_ 1136 c_ecu_gear 0 "Neutral" -1 "Reverse" -2 "Park" -3 "Unknown" -4 "Drive" -5 "Sport" -6 "Manual" -7 "Low" -8 "Overdrive" ;
+VAL_ 1136 c_ecu_selectorPosition 0 "Neutral" -1 "Reverse" -2 "Park" -3 "Unknown" -4 "Drive" -5 "Sport" -6 "Manual" -7 "Low" -8 "Overdrive" ;
+VAL_ 1780 c_ecu_engineState 0 "Stopped" 1 "Cranking" 2 "Idling" 3 "Running" 4 "Limiting" ;
+VAL_ 1138 c_ecu_cruiseControllerState 0 "Disabled" 1 "Inactive" 2 "Cruising" 3 "Accelerating" 4 "Decelerating" 5 "Cancelling" 6 "Disabling" ;
+VAL_ 1143 c_ecu_engineLimiterMethod 0 "No Cut" 1 "Fuel" 2 "Ignition" 3 "Fuel and Ignition" ;
+VAL_ 1143 c_ecu_rpmLimiterMethod 0 "No Cut" 1 "Fuel" 2 "Ignition" 3 "Fuel and Ignition" ;
+VAL_ 1139 c_ecu_cutPercentageMethod 0 "No Cut" 1 "Fuel" 2 "Ignition" 3 "Fuel and Ignition" ;

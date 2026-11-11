@@ -1,0 +1,139 @@
+VERSION "HIPBNYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY/4/%%%/4/'%**4YYY///"
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+
+BS_:
+
+BU_:
+
+
+BO_ 1536 BaseID: 8 Vector__XXX
+ SG_ INJPW : 48|16@1+ (0.016129,0) [0|50] "ms" Vector__XXX
+ SG_ MAP : 32|16@1+ (1,0) [0|600] "kPa" Vector__XXX
+ SG_ IAT : 24|8@1- (1,0) [-40|127] "°C" Vector__XXX
+ SG_ TPS : 16|8@1+ (0.5,0) [0|100] "%" Vector__XXX
+ SG_ RPM : 0|16@1+ (1,0) [0|16000] "RPM" Vector__XXX
+
+BO_ 1537 BaseID_1: 8 Vector__XXX
+ SG_ AIN4 : 48|16@1+ (0.004883,0) [0|5] "V" Vector__XXX
+ SG_ AIN3 : 32|16@1+ (0.004883,0) [0|5] "V" Vector__XXX
+ SG_ AIN2 : 16|16@1+ (0.004883,0) [0|5] "V" Vector__XXX
+ SG_ AIN1 : 0|16@1+ (0.004883,0) [0|5] "V" Vector__XXX
+
+BO_ 1538 BaseID_2: 8 Vector__XXX
+ SG_ CLT : 48|16@1- (1,0) [-40|250] "°C" Vector__XXX
+ SG_ FUELP : 40|8@1+ (0.0625,0) [0|12] "Bar" Vector__XXX
+ SG_ OILP : 32|8@1+ (0.0625,0) [0|12] "Bar" Vector__XXX
+ SG_ OILT : 24|8@1+ (1,0) [0|160] "°C" Vector__XXX
+ SG_ BARO : 16|8@1+ (1,0) [50|130] "kPa" Vector__XXX
+ SG_ VSPD : 0|16@1+ (1,0) [0|400] "km/h" Vector__XXX
+
+BO_ 1539 BaseID_3: 8 Vector__XXX
+ SG_ EGT2 : 48|16@1+ (1,0) [0|1100] "°C" Vector__XXX
+ SG_ EGT1 : 32|16@1+ (1,0) [0|1100] "°C" Vector__XXX
+ SG_ LAMCORR : 24|8@1+ (0.5,0) [75|125] "%" Vector__XXX
+ SG_ LAMBDA : 16|8@1+ (0.007813,0) [0|2] "L" Vector__XXX
+ SG_ DWELL : 8|8@1+ (0.05,0) [0|10] "ms" Vector__XXX
+ SG_ IGNANG : 0|8@1- (0.5,0) [-60|60] "°" Vector__XXX
+
+BO_ 1540 BaseID_4: 8 Vector__XXX
+ SG_ ETHANOL_CONTENT : 56|8@1+ (1,0) [0|100] "%" Vector__XXX
+ SG_ GEARCUT : 48|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_CLT : 32|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ BATT : 16|16@1+ (0.027,0) [0|20] "V" Vector__XXX
+ SG_ ECUTEMP : 8|8@1- (1,0) [-40|120] "°C" Vector__XXX
+ SG_ GEAR : 0|8@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ ERR_IAT : 33|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_MAP : 34|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_WBO : 35|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_EGT1 : 36|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_EGT2 : 37|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_ALARM : 38|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ KNOCKING : 39|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FFSENSOR : 40|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_DBW : 41|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ERR_FPR : 42|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ALS : 49|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LC : 50|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IDLE : 51|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ TABLE_SET : 52|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ TC_INTERVENTION : 53|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PIT_LIMITER : 54|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ BRAKE_SWITCH : 55|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 1541 BaseID_5: 8 Vector__XXX
+ SG_ PIT_LIMIT_TORQUE_REDUCTION : 56|8@1+ (1,0) [0|100] "%" Vector__XXX
+ SG_ TC_TORQUE_REDUCTION : 48|8@1+ (1,0) [0|100] "%" Vector__XXX
+ SG_ TC_DRPM : 32|16@1+ (1,0) [0|400] "" Vector__XXX
+ SG_ TC_DRPM_RAW : 16|16@1- (1,0) [0|1000] "" Vector__XXX
+ SG_ DBW_TRGT : 8|8@1+ (0.5,0) [0|100] "%" Vector__XXX
+ SG_ DBW_POS : 0|8@1+ (0.5,0) [0|100] "%" Vector__XXX
+
+BO_ 1542 BaseID_6: 8 Vector__XXX
+ SG_ FPS : 56|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ SW1 : 48|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW1 : 40|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PARAM_OUT1_STATE : 32|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AIN6 : 16|16@1+ (0.004883,0) [0|5] "V" Vector__XXX
+ SG_ AIN5 : 0|16@1+ (0.004883,0) [0|5] "V" Vector__XXX
+ SG_ PARAM_OUT2_STATE : 33|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PARAM_OUT3_STATE : 34|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PARAM_OUT4_STATE : 35|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PARAM_OUT5_STATE : 36|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ VIRTUAL_OUT1_STATE : 37|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ VIRTUAL_OUT2_STATE : 38|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ VIRTUAL_OUT3_STATE : 39|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW2 : 41|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW3 : 42|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW4 : 43|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW5 : 44|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW6 : 45|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW7 : 46|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CANSW8 : 47|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ SW2 : 49|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ SW3 : 50|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ MUXSW1 : 51|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ MUXSW2 : 52|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ MUXSW3 : 53|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LC_MAP_SET : 54|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ALS_MAP_SET : 55|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CF : 57|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AC_CLUTCH : 58|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AC_FAN : 59|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ NITROUS : 60|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ STARTER_REQ : 61|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ BOOST_MAP_SET : 62|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CRUISE_CTRL_ACTIVE : 63|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 1543 BaseID_7: 8 Vector__XXX
+ SG_ BOOST_TARGET : 0|16@1+ (1,0) [0|600] "kPa" Vector__XXX
+ SG_ PWM1_DC : 32|8@1+ (1,0) [0|100] "%" Vector__XXX
+ SG_ DSG_MODE : 16|8@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ LAMBDA_TARGET : 24|8@1+ (0.0078125,0) [0|2] "L" Vector__XXX
+ SG_ PWM2_DC : 40|8@1+ (1,0) [0|100] "%" Vector__XXX
+ SG_ FUEL_USED : 48|16@1+ (0.01,0) [0|655] "L" Vector__XXX
+
+
+CM_ SG_ 1542 CANSW1 "";
+VAL_ 1543 DSG_MODE 15 "Fault" 2 "P" 3 "R" 4 "N" 5 "D" 6 "S" 7 "M" ;

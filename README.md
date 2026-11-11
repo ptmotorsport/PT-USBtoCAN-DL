@@ -66,16 +66,97 @@ The red menu setting reports disabled logging, not successful SD recovery. If
 the card has faulted, draining/closing may have failed; check the SD status rather
 than treating red alone as confirmation. The menu is inactive in SLCAN mode.
 
+## GPS UART Test (GY-GPS6MV2)
+
+Connect GPS **TX to D0/RX** and common GND. **Disconnect GPS RX from D1 before
+uploading**; it is not needed for this test. Power the module according to its
+breakout specification. This firmware only receives and does not change the
+module configuration. D1 is switched to a high-impedance input after each UART
+initialization, but initialization can briefly enable TX. The Uno R4 uses 5 V
+logic, and the GPS receiver's RX may not tolerate 5 V; use appropriate level
+shifting before connecting device TX for any future bidirectional test.
+
+Upload the firmware, open the **USB** serial console at **115200 baud**, wait
+for startup to finish, then enter `GPS`. Serial1 starts at **9600 baud, 8N1**.
+Repeat `GPS` after a few seconds: increasing byte and checksum-valid sentence
+counts and `Communication: TALKING` confirm the GPS is communicating, even
+indoors without a satellite lock. The report includes the latest raw NMEA buffer
+(possibly invalid, truncated, or still being received). This single 96-byte
+sentence buffer keeps the test within the board's limited RAM.
+In GGA, the fix-quality field after longitude E/W is `0` without a fix; in RMC,
+the status immediately after UTC time is `V` (invalid), versus `A` (valid).
+These are expected indoors and do not indicate a UART fault. Stored sentences
+may be old; check the reported age of the last valid NMEA sentence.
+
+If no bytes arrive, check module power, common ground and crossed TX/RX.
+Bytes without valid NMEA, or repeated checksum/malformed errors, suggest a
+baud mismatch, wiring/noise issue, or non-NMEA output. `GPS BAUD 38400`, for
+example, changes only the device receiver baud and resets its diagnostics.
+Supported rates are 4800, 9600, 19200, 38400, 57600 and 115200. The selection
+is not saved; reboot restores 9600. A previously configured module may need a
+different rate. There is no automatic baud detection or GPS reconfiguration.
+
+Reception uses fixed-size buffers and bounded polling alongside CAN work.
+There is no automatic USB output, GPS CAN transmission, GPS SD logging, or RTC
+sync. GPS reception continues in SLCAN mode but diagnostics require returning
+to the CLI with `C`, then `EXIT`. SD operations and other blocking work can delay
+UART servicing and lose GPS bytes; the counts are not a loss-free capture guarantee.
+Sentences over 95 characters (excluding CR/LF) are rejected and counted as
+malformed/overlong. This accommodates standard NMEA sentences.
+
+## I2C Sensor Tests (GY-521 and BMP280)
+
+Connect both modules to **SDA/A4** and **SCL/A5** (or the equivalent SDA/SCL
+header pins), with common GND. Verify the breakout supply ratings and I2C
+pull-up voltage before powering them. The MPU-6050 and BMP280 chips use 3.3 V
+logic; do not assume a breakout's supply regulator also provides level shifting.
+Use appropriate level shifting for the Uno R4's 5 V side where required.
+For a BMP280 breakout with CS/CSB exposed, hold it HIGH at its logic supply to
+select I2C; SDO selects 0x76 (LOW) or 0x77 (HIGH), and must not float.
+The GY-521's AD0 selects 0x68 (LOW, usual default) or 0x69 (HIGH).
+
+After uploading, open the USB console at **115200 baud**:
+
+- `I2C`: scan non-reserved addresses 0x08-0x77 at 100 kHz. Typical responses
+  are 0x68 for the GY-521 and 0x76 or 0x77 for the BMP280. An ACK alone
+  does not identify the chip; use the sensor commands next.
+- `IMU`: check MPU-6050 WHO_AM_I (0x68 at either address), wake all axes,
+  configure +/-2 g and +/-250 degrees/second, and read acceleration (g),
+  gyro (degrees/second) and chip temperature (C). It selects a 44 Hz accel /
+  42 Hz gyro low-pass filter and 100 Hz sample rate. Repeat while tilting
+  or rotating the board. At rest, acceleration magnitude should be about 1 g
+  and gyro readings near zero; these readings are not offset-calibrated.
+  The GY-521 has no magnetometer and this test does not calculate orientation.
+- `BARO`: check BMP280 chip ID (0x58), read factory calibration, disable
+  filtering and take one forced pressure/temperature conversion at x1
+  oversampling. It returns to sleep after the conversion. Repeat for a fresh
+  reading. Pressure is reported in hPa, local absolute rather than sea-level
+  corrected; no humidity or altitude is calculated. A BME280 (ID 0x60)
+  is explicitly rejected rather than mistaken for a BMP280.
+
+If both address options contain supported sensors, the lower address is tested.
+The commands report unexpected chip IDs, transaction errors, short reads,
+configuration readback failures and barometer timeouts/invalid calibration.
+Nothing is initialized or polled until a diagnostic command is requested, and
+there is no unsolicited output, sensor CAN transmission, or sensor SD logging.
+CAN and GPS reception are serviced between transactions and during sensor
+settling waits. I2C transactions are synchronous; the Renesas Wire driver can
+wait up to about one second per failed transaction, delaying other work.
+Return from SLCAN with `C`, then `EXIT`, before running these CLI commands.
+
+To fit the I2C driver in the board's RAM without shrinking the console or its
+reports, this test branch reduces the CAN logging queue from 512 to **448 frames**.
+FIFO/overflow handling is unchanged, but burst buffering is correspondingly lower.
+
 ## SD Card Diagnostics
 
 Open the serial CLI at 115200 baud and enter `SD`. The read-only report shows
 the saved startup result, initialization start time and duration, requested SPI
 clock and pins, saved and current SdFat error codes with symbolic names, and
 filesystem mount status. It does not reinitialize the card or write a test file.
-Startup tries SD initialization up to five times, waiting 500 ms between failed
-attempts and stopping immediately on success. Normal logging starts after these
-attempts finish. The report includes the attempt count, first failure when retried,
-final initialization error, and total elapsed initialization time including waits.
+Startup makes exactly one SD initialization attempt, with no startup retry delay.
+Normal logging starts after this attempt finishes. The report includes the
+attempt count, initialization error, and total elapsed initialization time.
 After startup, logger mode retries an unavailable SD card every two seconds until
 it first becomes ready. A ready card is checked once per second, even without
 CAN traffic. Once ready, a failed check, card swap, or file open/write/sync/close
@@ -88,7 +169,7 @@ card-detect pin, so removal detection can take the check interval plus the SD
 library timeout. Individual SD operations are synchronous and can briefly delay
 CAN processing. Automatic remounts are paused in SavvyCAN mode.
 
-The logger stores up to 512 compact raw frames, formats them only when writing,
+The logger stores up to 448 compact raw frames, formats them only when writing,
 and releases each queue slot after SdFat accepts its row. CAN is drained in bursts
 of up to 32 frames before and after CLI work and between written rows. The CSV
 file stays open, with sync approximately once per second and close on rotation,
@@ -117,8 +198,8 @@ logs. Existing logs are not repaired or rewritten automatically.
 ### Expected Tail Loss
 
 **Healthy-operation target: roughly the latest 1 second of writes, plus frames
-still queued in RAM.** At an observed 800 frames/second, a full 512-frame queue
-represents another 0.64 seconds. With the earlier measured queue high-water of
+still queued in RAM.** At an observed 800 frames/second, a full 448-frame queue
+represents another 0.56 seconds. With the earlier measured queue high-water of
 34, that example backlog is about 43 ms. These are planning estimates, not
 measured power-cut guarantees or proof that the CAN driver lost no frames.
 
@@ -275,10 +356,30 @@ new-format marker; EEPROM storage is not a transactional database.
 
 Native C++11 tests in `test/` cover CSV formatting, ring ordering/overflow,
 numeric filter matching, bounded console output, SLCAN parsing/formatting and
-mocked USB/CAN bridge lifecycle. Compile each `*_test.cpp` independently with
+mocked USB/CAN bridge lifecycle, and GPS NMEA checksum/framing (including no-fix
+sentences, overflow and recovery), MPU-6050 scaling, and BMP280 compensation
+against the datasheet reference readings. Compile each `*_test.cpp` independently with
 `g++ -std=c++11 -Wall -Wextra -Werror -Iinclude`; the bridge test additionally links
-`src/slcan_bridge.cpp` with `-Itest/support -Iinclude -Isrc`. These tests do not
+`src/slcan_bridge.cpp` with `-Itest/support -Iinclude -Isrc`. The I2C diagnostics
+test links `src/i2c_diagnostics.cpp` with `-Itest/support/i2c -Iinclude -Isrc`,
+and covers mocked bus scans, sample reports and explicit sensor/I2C failures.
+These tests do not
 establish hardware throughput or loss-free capture.
+
+INS native tests additionally cover quaternion/error-state propagation and
+finite-difference Jacobians, synthetic navigation, calibration/mounting,
+versioned CRC configuration, and the raw/fused CAN contract. The bounded FSP
+driver test `test/ins_i2c_test.cpp` requires
+`-Itest/support/ins_fsp -Iinclude -Isrc` instead of the general Arduino mock.
+The firmware integration test `test/ins_runtime_test.cpp` instead requires
+`-Itest/support/ins_runtime -Itest/support/ins_fsp -Iinclude`; it includes the
+production runtime directly and mocks only hardware and the SLCAN transport.
+It exercises calibration/save/reinitialization, indoor NoFix broadcasts,
+GPS-aided/dead-reckoning transitions, queue expiry and frame spacing, mailbox
+busy/error handling, adapter ownership, stale IMU, I2C timeout shutdown and
+automatic IMU retry, saturation recovery, automatic reinitialization and the
+UBX GPS-rate sequence (`test/ins_ubx_test.cpp` checks UBX frame checksums).
+Build both `pio run -e ins_vehicle -e uno_r4_minima` after firmware changes.
 
 Removing a card during writes can corrupt its filesystem or lose data. Automatic
 recovery is not a safe-eject mechanism; stop logging or power down before removal.
@@ -290,6 +391,30 @@ so note how it was connected. The firmware does not measure the power source or
 SD supply voltage. Check the SD socket's 3.3V rail during startup for slow rise,
 dips or ripple, along with common ground, SPI signal levels and decoupling.
 
+## Sensor Fusion Roadmap and CAN Test DBC
+
+The separate **`ins_vehicle`** firmware implements experimental scheduled
+acquisition, quaternion error-state EKF and raw/fused CAN broadcasting with
+SD excluded. Follow the [INS vehicle-test guide](docs/INS_VEHICLE_TEST.md)
+for build/upload, mounting, explicit calibration, validity, automatic CAN
+output and mandatory bench/vehicle acceptance gates. CAN broadcasts ten
+frames at 25 Hz on boot (default 1 Mbit/s), including raw IMU before GPS lock
+or fusion; `TX OFF` remains a manual pause. No historical bench calibration
+values are embedded. The INS build configures the MPU-6050 for +/-8 g and
++/-500 deg/s, aids roll/pitch from gravity, treats saturation as a transient,
+automatically reinitializes after aiding loss when still, retries a missing IMU
+every 5 s, and offers optional 5 Hz GPS via `GPS RATE 5` (needs a 3.3 V level
+shifter on D1 to GPS RX).
+
+The [sensor fusion assessment](docs/SENSOR_FUSION_PATHWAY.md) describes the
+quaternion error-state EKF migration, an INS-only/no-SD build, hardware limits
+and staged validation. The [test DBC](can/ecumaster_raw_fused.dbc) converts the
+ECUMaster screenshot using big-endian multibyte fields and includes raw
+0x400-0x403 plus fused 0x408-0x40B (+0x008), with custom attitude/quality
+at 0x40C/0x40D. They broadcast automatically in the INS build; `TX ON` resumes
+after a manual pause. The original logger/diagnostic firmware never transmits
+these INS frames. Satellite count is payload byte 5 of 0x401; fix type is byte 7.
+
 ## Licence
 Copyright (c) 2026 - PT Motorsport AU Pty Ltd
 
@@ -298,5 +423,3 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
