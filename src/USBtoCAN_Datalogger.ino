@@ -13,7 +13,6 @@
 // Enable external 32.768kHz crystal for RTC accuracy
 #define RTC_CLOCK_SOURCE RTC_CLOCK_SOURCE_SUBCLK
 
-#include <Adafruit_NeoPixel.h>
 #include <Arduino_CAN.h>
 #include <EEPROM.h>
 #include <SdFat.h>
@@ -26,22 +25,25 @@
 #include "can_filter.h"
 #include "slcan_bridge.h"
 #include "status_config.h"
+#include "sd_card_detect.h"
 #include <analog.h>
+// Keep FastLED after Arduino_CAN to avoid a conflicting min overload in CanMsg.h.
+#include <FastLED.h>
 
-// NeoPixel variables
+// Status LED variables
 int pwrLED = 4;
 int recordingLED = 1;
 int terminationLED = 2;
 int errorLED = 3;
 int SDLED = 0;
-int neoPixelsPin = 2;
-int numNeoPixels = 5;
-int neoPixelsDelay = 500;
-int neoPixelsBrightness = 25;
+const uint8_t ledPin = 2;
+const int numLEDs = 5;
+const unsigned long ledDelay = 500;
+const uint8_t ledBrightness = 25;
 boolean txDelay = false;
 boolean rxDelay = false;
 boolean falseInput = false;
-Adafruit_NeoPixel pixels(numNeoPixels, neoPixelsPin, NEO_GRB + NEO_KHZ800);
+CRGB pixels[numLEDs];
 bool canReady = false;
 bool canMessageReceived = false;
 unsigned long lastCANReceiveMillis = 0;
@@ -119,6 +121,7 @@ uint8_t sdFirstErrorCode = 0;
 uint8_t sdFirstErrorData = 0;
 bool sdReady = false;
 bool sdFaultLatched = false;
+SDCardDetect sdCardDetect;
 unsigned long sdLastServiceMillis = 0;
 uint32_t sdRuntimeAttempts = 0;
 uint32_t sdDroppedMessages = 0;
@@ -160,10 +163,10 @@ bool loggingEnabled = true;
 bool loggingBeforeBridge = true;
 
 void setup() {
-  pixels.begin();
-  pixels.clear();
-  pixels.setPixelColor(pwrLED, pixels.Color(neoPixelsBrightness, 0, neoPixelsBrightness));
-  pixels.show();
+  FastLED.addLeds<WS2812, ledPin, GRB>(pixels, numLEDs);
+  FastLED.clear();
+  pixels[pwrLED] = CRGB(ledBrightness, 0, ledBrightness);
+  FastLED.show();
 
   // Read & update values from the EEPROM
   filterState = EEPROM.read(filterIndex);
@@ -180,6 +183,7 @@ void setup() {
   setTermination(EEPROM.read(terminationIndex) == 1);
   pinMode(StatusConfig::BUTTON1_PIN, INPUT_PULLUP);
   pinMode(StatusConfig::BUTTON2_PIN, INPUT_PULLUP);
+  pinMode(StatusConfig::SD_CARD_DETECT_PIN, INPUT_PULLUP);
 
   // Initialize Serial early for diagnostics
   Serial.begin(115200);
@@ -258,13 +262,18 @@ void setup() {
   vbattADC.cfg.resolution = ADC_RESOLUTION_12_BIT;
   vbattADC.cfg.mode = ADC_MODE_SINGLE_SCAN;
   vbattADC.cfg_extend.adc_vref_control = ADC_VREF_CONTROL_AVCC0_AVSS0;
-  vbattADC.channel_cfg.scan_mask = 1UL << 3;
+  vbattADC.channel_cfg.scan_mask = 1UL << StatusConfig::VBATT_ADC_CHANNEL;
   vbattADCReady = R_ADC_Open(&vbattADC.ctrl, &vbattADC.cfg) == FSP_SUCCESS;
   if (vbattADCReady) {
     vbattADCReady = R_ADC_ScanCfg(&vbattADC.ctrl, &vbattADC.channel_cfg) == FSP_SUCCESS;
   }
   sdStartupMillis = millis();
   for (uint8_t attempt = 1; attempt <= SD_STARTUP_MAX_ATTEMPTS; ++attempt) {
+    if (!isSDCardPresent()) {
+      sdLastFailure = "No card present";
+      Serial.println(F("SD card absent; skipping initialization"));
+      break;
+    }
     sdStartupAttempts = attempt;
     sdStartupReady = sd.begin(CHIP_SELECT, SD_SCK_MHZ(sdSpiClockMHz));
     sdStartupErrorCode = sd.sdErrorCode();
@@ -288,12 +297,13 @@ void setup() {
   }
   sdStartupDurationMillis = millis() - sdStartupMillis;
   if(sdStartupReady){
-    pixels.setPixelColor(SDLED, pixels.Color(0, neoPixelsBrightness, 0));
+    pixels[SDLED] = CRGB(0, ledBrightness, 0);
   } else{
-    pixels.setPixelColor(SDLED, pixels.Color(neoPixelsBrightness, 0, 0));
+    pixels[SDLED] = isSDCardPresent() ? CRGB(ledBrightness, 0, 0) : CRGB(0, 0, 0);
   }
   Serial.print(F("SD startup: "));
-  Serial.println(sdStartupReady ? F("OK") : F("FAILED (run SD for diagnostics)"));
+  Serial.println(sdStartupReady ? F("OK") : sdStartupAttempts == 0 ?
+      F("SKIPPED (no card present)") : F("FAILED (run SD for diagnostics)"));
   sdReady = sdStartupReady;
   if (sdReady) {
     sdCardIdentityValid = sd.card()->readCID(&sdCardIdentity);
@@ -316,6 +326,7 @@ void setup() {
 }
 
 void loop() {
+  serviceSD();
   logCAN();
   if (savvyCAN) {
     slcanProcess();
@@ -331,14 +342,13 @@ void loop() {
   wasBridge = savvyCAN;
   logCAN();
   if (!savvyCAN) {
-    serviceSD();
     flushBufferToSD();
   }
   currentMillis = millis();
   handleButtons();
 
-  // Update the NeoPixel values
-  if(currentMillis - previousMillis > neoPixelsDelay){
+  // Update the status LEDs
+  if(currentMillis - previousMillis > ledDelay){
     previousMillis = currentMillis;
     updateStatusLEDs();
   }
@@ -357,7 +367,7 @@ bool readVBATT() {
     }
   } while (status.state == ADC_STATE_SCAN_IN_PROGRESS);
   uint16_t raw = 0;
-  if (R_ADC_Read(&vbattADC.ctrl, ADC_CHANNEL_3, &raw) != FSP_SUCCESS) {
+  if (R_ADC_Read(&vbattADC.ctrl, StatusConfig::VBATT_ADC_CHANNEL, &raw) != FSP_SUCCESS) {
     return false;
   }
   vbattRaw = raw;
@@ -367,11 +377,12 @@ bool readVBATT() {
 
 void updateStatusLEDs() {
   const unsigned long now = millis();
-  const uint32_t off = pixels.Color(0, 0, 0);
-  const uint32_t red = pixels.Color(neoPixelsBrightness, 0, 0);
-  const uint32_t green = pixels.Color(0, neoPixelsBrightness, 0);
-  const uint32_t blue = pixels.Color(0, 0, neoPixelsBrightness);
-  const uint32_t white = pixels.Color(neoPixelsBrightness, neoPixelsBrightness, neoPixelsBrightness);
+  const bool cardPresent = isSDCardPresent();
+  const CRGB off(0, 0, 0);
+  const CRGB red(ledBrightness, 0, 0);
+  const CRGB green(0, ledBrightness, 0);
+  const CRGB blue(0, 0, ledBrightness);
+  const CRGB white(ledBrightness, ledBrightness, ledBrightness);
   int canErrorCode = 0;
   const bool canFault = !canReady || CAN.isError(canErrorCode);
   const bool receiving = canMessageReceived && now - lastCANReceiveMillis < StatusConfig::CANTIMEOUT;
@@ -380,35 +391,35 @@ void updateStatusLEDs() {
   vbattValid = readVBATT();
 
   if (menuActive) {
-    const uint32_t amber = pixels.Color(neoPixelsBrightness / 2, neoPixelsBrightness / 6, 0);
+    const CRGB amber(ledBrightness / 2, ledBrightness / 6, 0);
     // Selected LED shows the current value: CAN 125k red, 250k blue, 500k white, 1000k green
-    const uint32_t canSpeedColors[] = {red, blue, white, green};
-    for (int i = 0; i < numNeoPixels; i++) {
-      pixels.setPixelColor(i, amber);
+    const CRGB canSpeedColors[] = {red, blue, white, green};
+    for (int i = 0; i < numLEDs; i++) {
+      pixels[i] = amber;
     }
     if (menuSelection == MENU_CAN_SPEED) {
-      pixels.setPixelColor(errorLED, canSpeedColors[CANSpeed]);
+      pixels[errorLED] = canSpeedColors[CANSpeed];
     } else if (menuSelection == MENU_TERMINATION) {
-      pixels.setPixelColor(terminationLED, terminationEnabled ? green : red);
+      pixels[terminationLED] = terminationEnabled ? green : red;
     } else if (menuSelection == MENU_LOGGING) {
-      pixels.setPixelColor(recordingLED, loggingEnabled ? green : red);
+      pixels[recordingLED] = loggingEnabled ? green : red;
     }
-    pixels.show();
+    FastLED.show();
     return;
   }
 
-  pixels.setPixelColor(SDLED, sdReady ? green : red);
-  pixels.setPixelColor(recordingLED, savvyCAN ? off :
-      (!sdReady || canFault || logBufferOverflow) ? red : recording ? green : white);
-  pixels.setPixelColor(errorLED, canFault ? red : receiving ? green : blue);
-  pixels.setPixelColor(terminationLED, terminationEnabled ? white : off);
+  pixels[SDLED] = !cardPresent ? off : sdReady ? green : red;
+  pixels[recordingLED] = !cardPresent || !loggingEnabled || savvyCAN ? off :
+      (!sdReady || canFault || logBufferOverflow) ? red : recording ? green : white;
+  pixels[errorLED] = canFault ? red : receiving ? green : blue;
+  pixels[terminationLED] = terminationEnabled ? white : off;
   if (StatusConfig::TERMINATION_SENSE_PIN >= 0) {
-    pixels.setPixelColor(terminationLED,
-        digitalRead(StatusConfig::TERMINATION_SENSE_PIN) == StatusConfig::TERMINATION_ACTIVE_LEVEL ? white : off);
+    pixels[terminationLED] =
+        digitalRead(StatusConfig::TERMINATION_SENSE_PIN) == StatusConfig::TERMINATION_ACTIVE_LEVEL ? white : off;
   }
-  pixels.setPixelColor(pwrLED, booting ? pixels.Color(neoPixelsBrightness, 0, neoPixelsBrightness) : !vbattValid ? off :
-      vbattVolts > StatusConfig::VEHICLE_POWER_THRESHOLD_VOLTS ? green : blue);
-  pixels.show();
+  pixels[pwrLED] = booting ? CRGB(ledBrightness, 0, ledBrightness) : !vbattValid ? off :
+      vbattVolts > StatusConfig::VEHICLE_POWER_THRESHOLD_VOLTS ? green : blue;
+  FastLED.show();
 }
 
 void setTermination(bool enabled) {
@@ -476,6 +487,34 @@ void handleButtons() {
   }
 }
 
+bool isSDCardPresent() {
+  return digitalRead(StatusConfig::SD_CARD_DETECT_PIN) == StatusConfig::SD_CARD_PRESENT_LEVEL;
+}
+
+bool checkSDCardPresent() {
+  const SDCardDetect::State state = sdCardDetect.update(isSDCardPresent(), millis());
+  if (state == SDCardDetect::ABSENT) {
+    if (sdReady) {
+      markSDUnavailable("Card removed (detect switch)");
+    }
+    return false;
+  }
+  if (state == SDCardDetect::SETTLING) return false;
+  if (state == SDCardDetect::REINSERTED && sdFaultLatched) {
+    // SdFat move discards the old handle without syncing it to the reinserted card.
+    FsFile emptyFile;
+    dataFile.move(&emptyFile);
+    ++fileNum;
+    sdSyncedBytes = 0;
+    segmentStartedMillis = 0;
+    logWriteCompleted = false;
+    sdLastSyncMillis = millis();
+    sdFaultLatched = false;
+    sdLastServiceMillis = millis() - SD_RUNTIME_RETRY_MS;
+  }
+  return true;
+}
+
 void markSDUnavailable(const char *reason) {
   sdLastFailure = reason;
   sdLastErrorCode = sd.sdErrorCode();
@@ -493,7 +532,7 @@ void markSDUnavailable(const char *reason) {
 }
 
 void serviceSD() {
-  if (sdFaultLatched) {
+  if (!checkSDCardPresent() || sdFaultLatched || savvyCAN) {
     return;
   }
   const unsigned long interval = sdReady ? SD_HEALTH_INTERVAL_MS : SD_RUNTIME_RETRY_MS;
@@ -501,9 +540,6 @@ void serviceSD() {
     return;
   }
   if (!sdReady) {
-    if (savvyCAN) {
-      return;
-    }
     ++sdRuntimeAttempts;
     if (!sd.begin(CHIP_SELECT, SD_SCK_MHZ(sdSpiClockMHz))) {
       markSDUnavailable("Runtime mount");
@@ -754,6 +790,7 @@ void logCAN(){
 }
 
 bool syncLogSegment() {
+  if (!checkSDCardPresent() || !sdReady) return false;
   const unsigned long started = micros();
   const bool confirmed = LogPolicy::sync(dataFile, sdSyncedBytes);
   sdLastSyncMicros = micros() - started;
@@ -771,6 +808,7 @@ bool syncLogSegment() {
 
 bool finishLogSegment() {
   if (!syncLogSegment()) return false;
+  if (!checkSDCardPresent()) return false;
   if (!dataFile.close()) {
     markSDUnavailable("Segment close");
     return false;
@@ -779,7 +817,7 @@ bool finishLogSegment() {
 }
 
 void flushBufferToSD() {
-  if (!sdReady || savvyCAN) {
+  if (!checkSDCardPresent() || !sdReady || savvyCAN) {
     return;
   }
   if (bufferIndex == 0 && sdPendingMessages == 0) {
@@ -826,6 +864,7 @@ void flushBufferToSD() {
   }
   // Flush buffer to the SD card
   for (unsigned int written = 0; written < 8 && logQueue.size(); ++written) {
+    if (!checkSDCardPresent()) return;
     const LoggedFrame &frame = logQueue.front();
     char line[MSG_LENGTH];
     if (!formatLogRecord(line, sizeof(line), frame.timestampMillis, frame.identifier,

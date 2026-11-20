@@ -15,14 +15,28 @@ Thank you for your support! We greatly appreciate you spreading the word about o
 Thank you to Tessa who started this project in both hardware and firmware while she was interning at PT Motorsport Au
 
 
+## Digital Pin Assignments
+
+| Arduino pin | MCU pin | Function |
+| --- | --- | --- |
+| D0 | P301 | UART RX |
+| D1 | P302 | UART TX |
+| D2 | P105 | Addressable LED output |
+| D3 | P104 | CAN termination control |
+| D6 | P106 | Button 1 |
+| D7 | P107 | Button 2 |
+| D8 | P304 | SD card detect (LOW = inserted, internal pull-up) |
+| D10 | P112 | SD card chip select |
+
 ## Status LEDs
 
 LED numbering follows the physical chain, starting with LED 1 at pixel index 0.
+The five WS2812-compatible LEDs use FastLED on pin D2 with GRB color order.
 
 | LED | Function | Indication |
 | --- | --- | --- |
-| 1 | SD card | Green when available, red when unavailable or failed |
-| 2 | Recording | Green while messages are queued or recently written; white when ready and idle; red for SD/CAN errors or buffer overflow; off in SavvyCAN mode |
+| 1 | SD card | Off when no card is present; green when available, red when a present card is unavailable or failed |
+| 2 | Recording | Off when logging is disabled, no card is present, or in SavvyCAN mode; otherwise green while messages are queued or recently written, white when ready and idle, red for SD/CAN errors or buffer overflow |
 | 3 | CAN termination | White when the configured sense input is active, off otherwise |
 | 4 | CAN communications | Red on initialization or reported CAN error; green for recent received frames; blue when initialized without recent received frames |
 | 5 | Power | Green when measured VBATT is greater than 6 V, blue otherwise; off if the ADC read fails |
@@ -33,9 +47,18 @@ CAN errors remain indicated until CAN is reinitialized, for example with `CANSPE
 Receive activity refers to frames delivered by the controller, so hardware filters
 can exclude traffic from this indication.
 
-VBATT is read directly from P003 / AN003 using the Renesas FSP ADC driver because
-P003 is not in the Uno R4 Minima Arduino pin table. The divider maps 30 V battery
-voltage to 5 V ADC voltage (6:1 ratio). Conversion uses a 12-bit ADC and nominal
+The analog pin assignments are:
+
+| Arduino pin | MCU pin | Function |
+| --- | --- | --- |
+| A0 | P014 | VBATT sense |
+| A1 | P000 | Analog AV1 |
+| A2 | P001 | Analog AV2 |
+| A3 | P002 | Analog AV2 |
+
+Only VBATT is currently sampled by the firmware. It is read from A0 / P014 /
+AN009 using the Renesas FSP ADC driver. The divider maps 30 V battery voltage
+to 5 V ADC voltage (6:1 ratio). Conversion uses a 12-bit ADC and nominal
 5 V AVCC reference: `VBATT = ADC_count * 30 / 4095`. Adjust
 `VBATT_ADC_REFERENCE_VOLTS` to the actual AVCC voltage for calibration. The direct
 driver owns ADC unit 0; do not add Arduino `analogRead` calls on that unit without
@@ -55,7 +78,10 @@ Hold Button 2 for one second to enter or leave the menu. Press Button 1 to
 scroll through CAN speed, termination, then logging. Non-selected LEDs are amber;
 the selected item's LED displays its setting. Press Button 2 briefly to change it.
 
-On the logging item, LED 2 is **green for enabled** and **red for disabled**.
+The menu indications take priority over card presence: non-selected LEDs remain
+amber even without a card. On the logging item, LED 2 is **green for enabled**
+and **red for disabled**, regardless of card presence. Outside the menu, the
+recording LED is off when logging is disabled, even with a card inserted.
 Disabling stops accepting new log frames, drains the queue, syncs and closes the
 CSV using the same graceful-stop path as `LOG STOP`. Wait for the menu LED to
 change to red before removing the card. Enabling resumes recording in a new
@@ -68,25 +94,43 @@ than treating red alone as confirmation. The menu is inactive in SLCAN mode.
 
 ## SD Card Diagnostics
 
+Card detect is wired to **D8 / P304** (not D9 / P303). The socket switch pulls
+the input LOW when a card is inserted; firmware enables the internal pull-up.
+Physical presence does not imply the card has mounted successfully.
+
 Open the serial CLI at 115200 baud and enter `SD`. The read-only report shows
 the saved startup result, initialization start time and duration, requested SPI
 clock and pins, saved and current SdFat error codes with symbolic names, and
 filesystem mount status. It does not reinitialize the card or write a test file.
-Startup tries SD initialization up to five times, waiting 500 ms between failed
+Startup skips SD initialization when no card is detected. With a card present,
+it tries SD initialization up to five times, waiting 500 ms between failed
 attempts and stopping immediately on success. Normal logging starts after these
 attempts finish. The report includes the attempt count, first failure when retried,
 final initialization error, and total elapsed initialization time including waits.
-After startup, logger mode retries an unavailable SD card every two seconds until
-it first becomes ready. A ready card is checked once per second, even without
+After startup, logger mode retries an unavailable, physically present card every
+two seconds while no fault is latched. A ready card is checked once per second, even without
 CAN traffic. Once ready, a failed check, card swap, or file open/write/sync/close
-failure latches SD access off for the rest of that boot and turns the SD LED red.
-There are no automatic remounts or new file segments after a runtime fault, and
-the fault handler does not attempt another close/sync on a suspect file. This
-avoids repeated metadata writes to potentially damaged media. Inspect the card
-before rebooting; a reboot does not repair filesystem corruption. There is no configured
-card-detect pin, so removal detection can take the check interval plus the SD
-library timeout. Individual SD operations are synchronous and can briefly delay
-CAN processing. Automatic remounts are paused in SavvyCAN mode.
+failure latches SD access off and turns the SD LED red if a card is present
+(SD and recording LEDs are off when absent). The fault handler does
+not attempt another close/sync on a suspect file. Recovery requires an observed
+removal followed by reinsertion; a fault with the card still inserted does not
+cause repeated mount attempts. Inspect or replace suspect media before reinserting
+it; reinsertion does not repair filesystem corruption.
+Card detect is polled each loop (including SavvyCAN mode), before log flushes,
+between written rows, and before sync/close operations. Removal of a mounted
+card latches SD access off without attempting to sync or close it. Reinsertion
+clears the latch after the detect signal stays present for 100 ms. The stale
+file handle is discarded without syncing, the card is remounted, and queued frames
+are written to a new, exclusively created CSV file. Already attempted rows not
+confirmed by sync remain counted as unconfirmed/dropped and are not replayed.
+Logging remains disabled if the user previously stopped it. Mounting is deferred
+until logger mode if reinsertion happens in SavvyCAN mode.
+Any observed absent level while ready is treated as removal immediately for
+safety; insertion bounce restarts the 100 ms settling period.
+Individual SD operations are synchronous and can briefly
+delay CAN processing and removal detection; an operation already in progress
+cannot be interrupted by this polling. Automatic mounts and SPI health checks
+are paused in SavvyCAN mode, but card detection remains active.
 
 The logger stores up to 512 compact raw frames, formats them only when writing,
 and releases each queue slot after SdFat accepts its row. CAN is drained in bursts
@@ -142,7 +186,9 @@ on the laptop without conversion. Hot removal is an expected user action, but
 **cannot be guaranteed safe while writes are active**. `LOG STOP` remains an
 optional safer maintenance procedure, not a required normal shutdown step.
 Removal triggers the existing latched SD fault; reinserting a card after that
-fault requires a reboot. This does not provide a live hot-swap/eject protocol.
+fault clears the latch after 100 ms of stable presence and resumes in a new CSV
+without rebooting, if logging is enabled. This recovery is not a safe-eject
+protocol and cannot recover unsynced data from the removed card.
 
 ### Power-Cut Test Procedure
 
@@ -275,7 +321,8 @@ new-format marker; EEPROM storage is not a transactional database.
 
 Native C++11 tests in `test/` cover CSV formatting, ring ordering/overflow,
 numeric filter matching, bounded console output, SLCAN parsing/formatting and
-mocked USB/CAN bridge lifecycle. Compile each `*_test.cpp` independently with
+mocked USB/CAN bridge lifecycle, plus SD card reinsertion settling.
+Compile each `*_test.cpp` independently with
 `g++ -std=c++11 -Wall -Wextra -Werror -Iinclude`; the bridge test additionally links
 `src/slcan_bridge.cpp` with `-Itest/support -Iinclude -Isrc`. These tests do not
 establish hardware throughput or loss-free capture.
@@ -298,5 +345,3 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-

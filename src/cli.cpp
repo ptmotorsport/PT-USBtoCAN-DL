@@ -69,6 +69,7 @@ extern void clearFilters();
 extern void enterBridgeMode();
 extern void stopLogging();
 extern void startLogging();
+extern bool isSDCardPresent();
 extern bool loggingEnabled;
 extern uint32_t slcanDroppedFrames();
 extern void saveFilterRules(bool blacklist);
@@ -544,16 +545,20 @@ void CLIHandler::showSDDiag() {
 
   Serial.println(F("\n========== SD DIAGNOSTICS ==========\n"));
   Serial.print(F("Live SD state:     "));
-  Serial.println(sdReady ? F("READY (SD LED green)") : F("UNAVAILABLE (SD LED red)"));
+  Serial.println(!isSDCardPresent() ? F("NO CARD (SD and LOG LEDs off)") :
+      sdReady ? F("READY (SD LED green)") : F("UNAVAILABLE (SD LED red)"));
+  Serial.print(F("Card detect (D8/P304, LOW=present): "));
+  Serial.println(isSDCardPresent() ? F("PRESENT") : F("ABSENT"));
   Serial.print(F("Logging enabled:   "));
   Serial.println(loggingEnabled ? F("YES") : F("NO"));
   Serial.print(F("Queue high water:  "));
   Serial.println(sdQueueHighWater);
   Serial.print(F("Runtime recovery:  "));
   if (sdFaultLatched) {
-    Serial.println(F("STOPPED after runtime fault; inspect card, then reboot"));
+    Serial.println(F("STOPPED after runtime fault; remove and reinsert card to retry"));
   } else {
-    Serial.println(savvyCAN ? F("Paused in SavvyCAN mode") : F("Retry every 2000 ms until first successful mount"));
+    Serial.println(savvyCAN ? F("Paused in SavvyCAN mode") :
+        F("Retry every 2000 ms while card present and no fault is latched"));
   }
   Serial.println(F("Card health check: Every 1000 ms while ready"));
   Serial.print(F("Runtime attempts:  "));
@@ -593,7 +598,8 @@ void CLIHandler::showSDDiag() {
   }
   Serial.println();
   Serial.print(F("Startup result:    "));
-  Serial.println(sdStartupReady ? F("OK (historical)") : F("FAILED (historical)"));
+  Serial.println(sdStartupReady ? F("OK (historical)") : sdStartupAttempts == 0 ?
+      F("SKIPPED: no card present (historical)") : F("FAILED (historical)"));
   Serial.print(F("Startup attempts:  "));
   Serial.print(sdStartupAttempts);
   Serial.print(F(" / "));
@@ -661,13 +667,14 @@ void CLIHandler::showSDDiag() {
     sd.printFatType(&Serial);
     Serial.println();
   } else {
-    Serial.println(sdFaultLatched ? F("Fault latched; reboot required") : F("Unavailable; awaiting mount"));
+    Serial.println(sdFaultLatched ? F("Fault latched; remove and reinsert card") : !isSDCardPresent() ?
+        F("No card present") : F("Unavailable; awaiting mount"));
   }
   Serial.println(F("\nRead-only report; no reinitialization or write test performed."));
   Serial.println(F("Startup result is retained; current errors may reflect later logging."));
   if (sdFaultLatched) {
-    Serial.println(F("No further SD access this boot; automatic retries could worsen corruption."));
-    Serial.println(F("Preserve/image the card before repair or formatting. Reboot does not repair FAT."));
+    Serial.println(F("SD access stopped until removal and stable reinsertion are detected."));
+    Serial.println(F("Inspect or replace suspect media; reinsertion does not repair filesystem corruption."));
   }
   if (!sdReady) {
     if (sdStartupErrorCode == SD_CARD_ERROR_CMD0) {
@@ -702,7 +709,7 @@ void CLIHandler::showStatus() {
 
   Serial.print(F("Termination LED input: "));
   Serial.println(StatusConfig::TERMINATION_SENSE_PIN >= 0 ? F("CONFIGURED") : F("UNCONFIGURED (LED off)"));
-    Serial.print(F("VBATT (P003):          "));
+    Serial.print(F("VBATT (A0/P014):       "));
     if (vbattValid) {
       Serial.print(vbattVolts, 2);
       Serial.print(F(" V / ADC="));
