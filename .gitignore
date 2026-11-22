@@ -3,3 +3,8 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Python bytecode and the documented local log export directory.
+__pycache__/
+*.py[cod]
+/bench-logs/

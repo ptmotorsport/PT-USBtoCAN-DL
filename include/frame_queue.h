@@ -19,6 +19,7 @@ template <size_t Capacity> class FrameQueue {
     return true;
   }
   const LoggedFrame &front() const { return frames_[head_]; }
+  const LoggedFrame &at(size_t index) const { return frames_[(head_ + index) % Capacity]; }
   void pop() {
     if (count_) { head_ = (head_ + 1) % Capacity; --count_; }
   }

@@ -5,6 +5,8 @@
 #include <Arduino_CAN.h>
 #include "status_config.h"
 #include "bounded_console.h"
+#include "timing_stats.h"
+#include "log_format.h"
 #include "can_filter.h"
 #include "slcan_protocol.h"
 #include "slcan_bridge.h"
@@ -69,6 +71,8 @@ extern void clearFilters();
 extern void enterBridgeMode();
 extern void stopLogging();
 extern void startLogging();
+extern FormatChangeResult setLogFormat(LogFormat requested);
+extern LogFormat logFormat;
 extern bool isSDCardPresent();
 extern bool loggingEnabled;
 extern uint32_t slcanDroppedFrames();
@@ -82,6 +86,7 @@ extern const int listStateIndex;
 
 extern const int CHIP_SELECT;
 extern SdFat sd;
+extern FsFile dataFile;
 extern uint32_t sdSpiClockMHz;
 extern bool sdStartupReady;
 extern unsigned long sdStartupMillis;
@@ -104,10 +109,24 @@ extern uint32_t sdPendingMessages;
 extern uint32_t sdSyncedBytes;
 extern uint32_t sdLastSyncMicros;
 extern uint32_t sdMaxSyncMicros;
+extern uint32_t sdLastWriteMicros;
+extern uint32_t sdMaxWriteMicros;
+extern uint32_t sdWritesAtLeast1ms;
+extern uint32_t sdWritesAtLeast10ms;
+extern TimingStats canDrainTiming;
+extern TimingStats csvFormatTiming;
+extern TimingStats sdWriteTiming;
+extern TimingStats sdSyncTiming;
+extern TimingStats sdOpenTiming;
+extern TimingStats sdCloseTiming;
+extern TimingStats sdHealthTiming;
+extern TimingStats sdNameCheckTiming;
+extern TimingStats sdHeaderTiming;
 extern uint8_t sdLastErrorCode;
 extern uint8_t sdLastErrorData;
 extern const char *sdLastFailure;
 extern int bufferIndex;
+extern const int BUFFER_SIZE;
 extern bool canReady;
 extern bool canMessageReceived;
 extern unsigned long lastCANReceiveMillis;
@@ -116,6 +135,147 @@ extern float vbattVolts;
 extern bool vbattValid;
 
 namespace {
+
+enum class SDExportMode { Idle, List, Get };
+SDExportMode sdExportMode = SDExportMode::Idle;
+FsFile sdExportFile;
+uint32_t sdExportRemaining = 0;
+uint32_t sdExportCRC = UINT32_MAX;
+unsigned long sdExportLastProgress = 0;
+constexpr size_t SD_EXPORT_NAME_SIZE = 64;
+
+bool validSDExportName(const char *name) {
+  const size_t length = strlen(name);
+  if (length <= 4 || length >= SD_EXPORT_NAME_SIZE ||
+      name[0] < '0' || name[0] > '9' ||
+      (strcasecmp(name + length - 4, ".csv") != 0 && strcasecmp(name + length - 4, ".bin") != 0)) {
+    return false;
+  }
+  for (size_t i = 0; i < length - 4; ++i) {
+    if ((name[i] < '0' || name[i] > '9') && name[i] != '_') return false;
+  }
+  return true;
+}
+
+void discardReadHandle(FsFile &file) {
+  // SdFat close can sync the volume; these read-only handles need no sync.
+  FsFile empty;
+  file.move(&empty);
+}
+
+void endSDExport() {
+  discardReadHandle(sdExportFile);
+  sdExportMode = SDExportMode::Idle;
+}
+
+const char *sdExportBlockReason() {
+  if (loggingEnabled) return F("Stop logging first (LOG STOP)");
+  if (!sdReady || !isSDCardPresent()) return F("SD card not ready");
+  if (dataFile.isOpen() || bufferIndex != 0 || sdPendingMessages != 0) {
+    return F("Log file not closed or data still pending");
+  }
+  return nullptr;
+}
+
+void sdExportError(const char *reason) {
+  Serial.print(F("SDX ERR "));
+  Serial.println(reason);
+  endSDExport();
+}
+
+void startSDExport(const char *name) {
+  if (const auto *reason = sdExportBlockReason()) {
+    sdExportError(reason);
+    return;
+  }
+  if (!name) {
+    if (!sdExportFile.openRoot(&sd)) {
+      sdExportError(F("Cannot open root directory"));
+      return;
+    }
+    sdExportMode = SDExportMode::List;
+    Serial.println(F("SDX LIST"));
+  } else {
+    if (!validSDExportName(name)) {
+      sdExportError(F("Expected a root log CSV or BIN filename"));
+      return;
+    }
+    if (!sdExportFile.open(&sd, name, O_RDONLY) || !sdExportFile.isFile()) {
+      sdExportError(F("Cannot open log file"));
+      return;
+    }
+    const uint64_t size = sdExportFile.fileSize();
+    if (size > UINT32_MAX) {
+      sdExportError(F("File too large"));
+      return;
+    }
+    sdExportRemaining = static_cast<uint32_t>(size);
+    sdExportCRC = UINT32_MAX;
+    sdExportMode = SDExportMode::Get;
+    Serial.print(F("SDX GET "));
+    Serial.println(sdExportRemaining);
+  }
+  sdExportLastProgress = millis();
+}
+
+void serviceSDExport(bool connected) {
+  if (!connected || millis() - sdExportLastProgress >= 5000) {
+    Serial.discard();
+    endSDExport();
+    return;
+  }
+  if (Serial.pending()) return;
+  sdExportLastProgress = millis();
+  if (const auto *reason = sdExportBlockReason()) {
+    sdExportError(reason);
+    return;
+  }
+
+  if (sdExportMode == SDExportMode::List) {
+    FsFile entry;
+    if (!entry.openNext(&sdExportFile, O_RDONLY)) {
+      if (sdExportFile.getError() || sd.sdErrorCode()) sdExportError(F("Directory read failed"));
+      else {
+        Serial.println(F("SDX END"));
+        endSDExport();
+      }
+      return;
+    }
+    char name[SD_EXPORT_NAME_SIZE];
+    if (entry.isFile() && entry.getName(name, sizeof(name)) && validSDExportName(name)) {
+      Serial.print(F("SDX FILE "));
+      Serial.println(name);
+    }
+    discardReadHandle(entry);
+    return;
+  }
+  if (sdExportRemaining == 0) {
+    Serial.print(F("SDX CRC "));
+    Serial.println(sdExportCRC ^ UINT32_MAX, HEX);
+    endSDExport();
+    return;
+  }
+  uint8_t bytes[256];
+  const size_t count = sdExportRemaining < sizeof(bytes) ? sdExportRemaining : sizeof(bytes);
+  if (sdExportFile.read(bytes, count) != static_cast<int>(count)) {
+    sdExportError(F("File read failed"));
+    return;
+  }
+  constexpr char hex[] = "0123456789ABCDEF";
+  uint8_t encoded[2 * sizeof(bytes) + 2];
+  encoded[0] = ':';
+  for (size_t i = 0; i < count; ++i) {
+    encoded[1 + 2 * i] = hex[bytes[i] >> 4];
+    encoded[2 + 2 * i] = hex[bytes[i] & 15];
+    sdExportCRC ^= bytes[i];
+    for (uint8_t bit = 0; bit < 8; ++bit) {
+      sdExportCRC = (sdExportCRC >> 1) ^ ((sdExportCRC & 1) ? 0xEDB88320UL : 0);
+    }
+  }
+  encoded[1 + 2 * count] = '\n';
+  Serial.write(encoded, 2 * count + 2);
+  sdExportRemaining -= count;
+}
 
 bool parseFilterNumber(const char *text, int base, unsigned long maximum,
                        unsigned long &value) {
@@ -323,10 +483,15 @@ String CLIHandler::readLine() {
 void CLIHandler::process() {
   const bool connected = static_cast<bool>(Serial);
   if (savvyCAN) {
+    if (sdExportMode != SDExportMode::Idle) endSDExport();
     Serial.discard();
     return;
   }
   Serial.drain();
+  if (sdExportMode != SDExportMode::Idle) {
+    serviceSDExport(connected);
+    return;
+  }
   if (!connected || Serial.pending()) return;
   if (bridgeReturnReportPending) {
     bridgeReturnReportPending = false;
@@ -360,7 +525,30 @@ void CLIHandler::handleCommand(const String &line) {
   }
   if (cmd == "LOG START") {
     startLogging();
-    Serial.println(F("OK: Logging enabled"));
+    Serial.println(sdReady && dataFile.isOpen() ? F("OK: Logging enabled") :
+        F("ERR: Logging enabled but SD is unavailable; check SD diagnostics"));
+    return;
+  }
+  if (cmd == "LOG FORMAT") {
+    Serial.print(F("Log format: "));
+    Serial.println(logFormat == LogFormat::Binary ? F("BINARY") : F("CSV"));
+    return;
+  }
+  if (cmd.startsWith("LOG FORMAT ")) {
+    const String value = cmd.substring(11);
+    if (value != "CSV" && value != "BINARY") {
+      Serial.println(F("ERR: Use LOG FORMAT CSV or LOG FORMAT BINARY"));
+      return;
+    }
+    const FormatChangeResult result = setLogFormat(value == "CSV" ? LogFormat::Csv : LogFormat::Binary);
+    if (result == FormatChangeResult::CannotClose)
+      Serial.println(F("ERR: Format unchanged; old log could not be safely closed. Check SD"));
+    else if (result == FormatChangeResult::ResumeFailed)
+      Serial.println(F("ERR: Format saved, but logging could not resume. Check SD"));
+    else if (result == FormatChangeResult::Unchanged)
+      Serial.println(F("OK: Log format unchanged"));
+    else
+      Serial.println(F("OK: Log format saved; recording may pause during transition"));
     return;
   }
 
@@ -478,6 +666,14 @@ void CLIHandler::handleCommand(const String &line) {
   }
 
   // SD CARD STATUS
+  if (cmd == "SD LIST" || cmd.startsWith("SD GET ")) {
+    startSDExport(cmd == "SD LIST" ? nullptr : cmd.c_str() + 7);
+    return;
+  }
+  if (cmd == "SD GET") {
+    sdExportError(F("Usage: SD GET <filename>"));
+    return;
+  }
   if (cmd == "SD") {
     showSDDiag();
     return;
@@ -531,12 +727,31 @@ void CLIHandler::showHelp() {
 
   Serial.println("SD CARD & DATA LOGGING:");
   Serial.println("  LOG STOP / LOG START - Drain and close / resume logging");
+  Serial.println("  LOG FORMAT [CSV|BINARY] - Show or change saved log format");
   Serial.println("  SD                  - Show SD startup and error diagnostics");
+  Serial.println("  SD LIST / SD GET    - Read-only log export after LOG STOP");
   Serial.println("  FILE RESET          - Reset file counter");
   Serial.println("  SAVVYCAN            - Toggle SavvyCAN mode (UART protocol)");
   Serial.println();
 
   Serial.println("=========================================\n");
+}
+
+static void printTiming(const char *label, const TimingStats &stats) {
+  Serial.print(label);
+  Serial.print(F(": calls="));
+  Serial.print(stats.calls);
+  Serial.print(F(" total_ms="));
+  uint64_t milliseconds = stats.totalMicros / 1000;
+  char digits[21];
+  size_t used = 0;
+  do {
+    digits[used++] = static_cast<char>('0' + milliseconds % 10);
+    milliseconds /= 10;
+  } while (milliseconds);
+  while (used) Serial.write(digits[--used]);
+  Serial.print(F(" max_us="));
+  Serial.println(stats.maxMicros);
 }
 
 void CLIHandler::showSDDiag() {
@@ -565,7 +780,8 @@ void CLIHandler::showSDDiag() {
   Serial.println(sdRuntimeAttempts);
   Serial.print(F("Buffered messages: "));
   Serial.print(bufferIndex);
-  Serial.println(F(" / 512"));
+  Serial.print(F(" / "));
+  Serial.println(BUFFER_SIZE);
   Serial.print(F("Dropped messages:  "));
   Serial.println(sdDroppedMessages);
   Serial.print(F("SD queue overflows: "));
@@ -576,14 +792,40 @@ void CLIHandler::showSDDiag() {
   Serial.println(sdPendingMessages);
   Serial.print(F("Last synced bytes: "));
   Serial.println(sdSyncedBytes);
-  Serial.println(F("Segments: direct CSV, 4 MiB / 5 min; sync every 1000 ms"));
+  Serial.print(F("Log format:        "));
+  Serial.println(logFormat == LogFormat::Binary ? F("BINARY") : F("CSV"));
+  Serial.println(F("Segments: 4 MiB / 5 min; sync every 1000 ms"));
   Serial.print(F("Last sync duration (us): "));
   Serial.println(sdLastSyncMicros);
   Serial.print(F("Max sync duration (us): "));
   Serial.println(sdMaxSyncMicros);
+  Serial.print(F("Last batch write duration (us): "));
+  Serial.println(sdLastWriteMicros);
+  Serial.print(F("Max batch write duration (us): "));
+  Serial.println(sdMaxWriteMicros);
+  Serial.print(F("Batch writes >= 1 ms / >= 10 ms: "));
+  Serial.print(sdWritesAtLeast1ms);
+  Serial.print(F(" / "));
+  Serial.println(sdWritesAtLeast10ms);
+  Serial.println(F("Foreground wall time since boot (includes interrupts):"));
+  printTiming(F("CAN drain"), canDrainTiming);
+  printTiming(F("Log batch preparation"), csvFormatTiming);
+  printTiming(F("SD batch write"), sdWriteTiming);
+  printTiming(F("SD sync"), sdSyncTiming);
+  printTiming(F("File prepare"), sdOpenTiming);
+  printTiming(F("Filename check"), sdNameCheckTiming);
+  printTiming(F("Header write"), sdHeaderTiming);
+  printTiming(F("File close"), sdCloseTiming);
+  printTiming(F("SD health"), sdHealthTiming);
   Serial.print(F("CLI output overflow (dropped bytes): "));
   Serial.println(Serial.droppedBytes());
-  Serial.println(F("CAN library RX losses: unmeasured"));
+  Serial.print(F("CAN RX ring high water: "));
+  Serial.print(CAN.receiveBufferHighWater());
+  Serial.println(F(" / 256"));
+  Serial.print(F("CAN RX ring dropped frames: "));
+  Serial.println(CAN.receiveBufferDrops());
+  Serial.print(F("CAN mailbox loss events: "));
+  Serial.println(CAN.mailboxLossEvents());
   Serial.print(F("SLCAN dropped frames: "));
   Serial.println(slcanDroppedFrames());
   Serial.print(F("Last runtime fault: "));
@@ -690,6 +932,8 @@ void CLIHandler::showSDDiag() {
 
 void CLIHandler::showStatus() {
   Serial.println("\n========== DEVICE STATUS ==========\n");
+  Serial.print(F("Log format:     "));
+  Serial.println(logFormat == LogFormat::Binary ? F("BINARY") : F("CSV"));
 
   Serial.print("CAN Speed:      ");
   Serial.print(CANSpeedArray[CANSpeed] / 1000);
@@ -726,6 +970,8 @@ void CLIHandler::showStatus() {
 
 void CLIHandler::showConfig() {
   Serial.println("\n========== CURRENT CONFIGURATION ==========\n");
+  Serial.print(F("Log format:          "));
+  Serial.println(logFormat == LogFormat::Binary ? F("BINARY") : F("CSV"));
 
   Serial.print("CAN Speed (EEPROM):  ");
   Serial.print(CANSpeedArray[EEPROM.read(CANSpeedIndex)] / 1000);

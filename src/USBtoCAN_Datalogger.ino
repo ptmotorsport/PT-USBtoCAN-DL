@@ -22,6 +22,12 @@
 #include "log_record.h"
 #include "log_policy.h"
 #include "frame_queue.h"
+#include "csv_batch.h"
+#include "binary_log.h"
+#include "log_format.h"
+#include "log_file_creation.h"
+#include "receive_flow.h"
+#include "timing_stats.h"
 #include "can_filter.h"
 #include "slcan_bridge.h"
 #include "status_config.h"
@@ -68,11 +74,12 @@ struct Button {
   unsigned long pressedMillis;
 };
 enum ButtonEvent { BUTTON_NONE, BUTTON_SHORT, BUTTON_LONG };
-enum MenuItem { MENU_CAN_SPEED, MENU_TERMINATION, MENU_LOGGING, MENU_ITEM_COUNT };
+enum MenuItem { MENU_CAN_SPEED, MENU_TERMINATION, MENU_LOGGING, MENU_LOG_FORMAT, MENU_ITEM_COUNT };
 Button button1 = {StatusConfig::BUTTON1_PIN};
 Button button2 = {StatusConfig::BUTTON2_PIN};
 bool menuActive = false;
 uint8_t menuSelection = MENU_CAN_SPEED;
+bool menuFormatError = false;
 
 // CAN filter variables
 static uint32_t const CAN_FILTER_MASK_STANDARD = 0x1FFC0000;
@@ -107,8 +114,12 @@ String segmentBase;
 uint32_t sdSyncedBytes = 0;
 unsigned long segmentStartedMillis = 0;
 int fileNum = 0;
+bool nextSegmentIsRollover = false;
 extern const int CHIP_SELECT = 10;
-uint32_t sdSpiClockMHz = 12;
+#ifndef SD_SPI_CLOCK_MHZ
+#define SD_SPI_CLOCK_MHZ 12
+#endif
+uint32_t sdSpiClockMHz = SD_SPI_CLOCK_MHZ;
 bool sdStartupReady = false;
 unsigned long sdStartupMillis = 0;
 unsigned long sdStartupDurationMillis = 0;
@@ -142,6 +153,8 @@ int whitelistIndex = 4;
 int blacklistIndex = whitelistIndex + NUM_ROWS*NUM_COLS;
 // White/blacklists interleave across bytes 4-59
 int terminationIndex = 64;
+const int logFormatIndex = 65;
+LogFormat logFormat = LogFormat::Csv;
 
 // CANSpeed variables
 byte CANSpeed;
@@ -149,9 +162,11 @@ int CANSpeedArray[4] = {125000, 250000, 500000, 1000000};
 
 // SD buffer variables
 int bufferIndex = 0;
-const int MSG_LENGTH = 100;
-const int BUFFER_SIZE = 512;
+extern const int BUFFER_SIZE = 288;
 FrameQueue<BUFFER_SIZE> logQueue;
+char csvBatchBuffer[512];
+bool drainingStoppedFrames = false;
+size_t stoppedFramesRemaining = 0;
 uint32_t sdQueueOverflows = 0;
 uint32_t sdQueueHighWater = 0;
 uint32_t sdUnconfirmedMessages = 0;
@@ -159,6 +174,19 @@ uint32_t sdPendingMessages = 0;
 unsigned long sdLastSyncMillis = 0;
 uint32_t sdLastSyncMicros = 0;
 uint32_t sdMaxSyncMicros = 0;
+uint32_t sdLastWriteMicros = 0;
+uint32_t sdMaxWriteMicros = 0;
+uint32_t sdWritesAtLeast1ms = 0;
+uint32_t sdWritesAtLeast10ms = 0;
+TimingStats canDrainTiming;
+TimingStats csvFormatTiming;
+TimingStats sdWriteTiming;
+TimingStats sdSyncTiming;
+TimingStats sdOpenTiming;
+TimingStats sdCloseTiming;
+TimingStats sdHealthTiming;
+TimingStats sdNameCheckTiming;
+TimingStats sdHeaderTiming;
 bool loggingEnabled = true;
 bool loggingBeforeBridge = true;
 
@@ -178,6 +206,7 @@ void setup() {
     EEPROM.update(CANSpeedIndex, CANSpeed);
   }
   listState = EEPROM.read(listStateIndex);
+  logFormat = logFormatFromStorage(EEPROM.read(logFormatIndex));
   EEPROM.update(fileCountIndex, fileCount);
   pinMode(StatusConfig::TERMINATION_CONTROL_PIN, OUTPUT);
   setTermination(EEPROM.read(terminationIndex) == 1);
@@ -403,6 +432,8 @@ void updateStatusLEDs() {
       pixels[terminationLED] = terminationEnabled ? green : red;
     } else if (menuSelection == MENU_LOGGING) {
       pixels[recordingLED] = loggingEnabled ? green : red;
+    } else if (menuSelection == MENU_LOG_FORMAT) {
+      pixels[SDLED] = menuFormatError ? red : logFormat == LogFormat::Csv ? green : blue;
     }
     FastLED.show();
     return;
@@ -458,6 +489,7 @@ void handleButtons() {
   if (button2Event == BUTTON_LONG) {
     menuActive = !menuActive;
     menuSelection = MENU_CAN_SPEED;
+    menuFormatError = false;
     updateStatusLEDs();
     return;
   }
@@ -466,6 +498,7 @@ void handleButtons() {
   }
   if (button1Event != BUTTON_NONE) {
     menuSelection = (menuSelection + 1) % MENU_ITEM_COUNT;
+    menuFormatError = false;
     updateStatusLEDs();
   }
   if (button2Event == BUTTON_SHORT) {
@@ -482,6 +515,11 @@ void handleButtons() {
       } else {
         startLogging();
       }
+      updateStatusLEDs();
+    } else if (menuSelection == MENU_LOG_FORMAT) {
+      const FormatChangeResult result = setLogFormat(
+          logFormat == LogFormat::Csv ? LogFormat::Binary : LogFormat::Csv);
+      menuFormatError = result == FormatChangeResult::CannotClose || result == FormatChangeResult::ResumeFailed;
       updateStatusLEDs();
     }
   }
@@ -505,6 +543,7 @@ bool checkSDCardPresent() {
     FsFile emptyFile;
     dataFile.move(&emptyFile);
     ++fileNum;
+    nextSegmentIsRollover = false;
     sdSyncedBytes = 0;
     segmentStartedMillis = 0;
     logWriteCompleted = false;
@@ -554,7 +593,10 @@ void serviceSD() {
     updateStatusLEDs();
   } else {
     cid_t identity;
-    if (!sd.card()->readCID(&identity)) {
+    const unsigned long healthStarted = micros();
+    const bool healthOk = sd.card()->readCID(&identity);
+    sdHealthTiming.record(micros() - healthStarted);
+    if (!healthOk) {
       markSDUnavailable("Card check (removed or communication failed)");
       return;
     }
@@ -599,29 +641,61 @@ bool sendBridgeCAN(uint32_t identifier, bool extended, uint8_t length, const uin
   return CAN.write(frame) > 0;
 }
 
-void enterBridgeMode() {
-  loggingBeforeBridge = loggingEnabled;
+void stopLogging() {
+  noInterrupts();
+  stoppedFramesRemaining = loggingEnabled ? CAN.available() : 0;
+  interrupts();
+  drainingStoppedFrames = stoppedFramesRemaining > 0;
   loggingEnabled = false;
-  while (logQueue.size() && sdReady) flushBufferToSD();
+  nextSegmentIsRollover = false;
+  while (sdReady && (logQueue.size() || stoppedFramesRemaining)) {
+    if (!logQueue.size()) logCAN();
+    flushBufferToSD();
+  }
+  drainingStoppedFrames = false;
+  stoppedFramesRemaining = 0;
   if (sdReady && dataFile.isOpen()) {
     finishLogSegment();
   }
+}
+
+void enterBridgeMode() {
+  loggingBeforeBridge = loggingEnabled;
+  stopLogging();
   ++fileNum;
   savvyCAN = true;
   slcanBegin();
 }
 
-void stopLogging() {
-  loggingEnabled = false;
-  while (logQueue.size() && sdReady) flushBufferToSD();
-  if (sdReady && dataFile.isOpen()) {
-    finishLogSegment();
+void startLogging() {
+  if (!loggingEnabled) {
+    ++fileNum;
+    nextSegmentIsRollover = false;
   }
+  loggingEnabled = true;
+  flushBufferToSD();
 }
 
-void startLogging() {
-  if (!loggingEnabled) ++fileNum;
-  loggingEnabled = true;
+FormatChangeResult setLogFormat(LogFormat requested) {
+  if (requested == logFormat) return FormatChangeResult::Unchanged;
+  const bool wasLogging = loggingEnabled;
+  if (wasLogging) {
+    if (!sdReady || !checkSDCardPresent()) return FormatChangeResult::CannotClose;
+    stopLogging();
+    if (!sdReady || dataFile.isOpen() || logQueue.size() || sdPendingMessages) {
+      loggingEnabled = true;
+      return FormatChangeResult::CannotClose;
+    }
+  } else if (dataFile.isOpen() || logQueue.size() || sdPendingMessages) {
+    return FormatChangeResult::CannotClose;
+  }
+  logFormat = requested;
+  EEPROM.update(logFormatIndex, logFormatToStorage(logFormat));
+  if (wasLogging) {
+    startLogging();
+    if (!sdReady || !dataFile.isOpen()) return FormatChangeResult::ResumeFailed;
+  }
+  return FormatChangeResult::Changed;
 }
 
 void setFilters(){
@@ -749,7 +823,11 @@ bool checkBlacklist(CanMsg msg){
 
 // Log new CAN message to the char buffer
 void logCAN(){
+  const unsigned long drainStarted = micros();
   for (unsigned int drained = 0; drained < 32; ++drained) {
+    if (drainingStoppedFrames && stoppedFramesRemaining == 0) break;
+    if (receiveMustWait(loggingEnabled, drainingStoppedFrames, savvyCAN, sdReady,
+        logQueue.size(), BUFFER_SIZE)) break;
     noInterrupts();
     if (!CAN.available()) {
       interrupts();
@@ -757,6 +835,7 @@ void logCAN(){
     }
     CanMsg const MSG = CAN.read();
     interrupts();
+    if (drainingStoppedFrames) --stoppedFramesRemaining;
     lastCANReceiveMillis = millis();
     canMessageReceived = true;
 
@@ -765,7 +844,7 @@ void logCAN(){
       filterPass = checkBlacklist(MSG);
     }
 
-    if(filterPass && !savvyCAN && loggingEnabled){
+    if(filterPass && !savvyCAN && (loggingEnabled || drainingStoppedFrames)){
       LoggedFrame frame = {};
       frame.timestampMillis = lastCANReceiveMillis;
       frame.identifier = MSG.isExtendedId() ? MSG.getExtendedId() : MSG.getStandardId();
@@ -787,6 +866,7 @@ void logCAN(){
       }
     }
   }
+  canDrainTiming.record(micros() - drainStarted);
 }
 
 bool syncLogSegment() {
@@ -794,6 +874,7 @@ bool syncLogSegment() {
   const unsigned long started = micros();
   const bool confirmed = LogPolicy::sync(dataFile, sdSyncedBytes);
   sdLastSyncMicros = micros() - started;
+  sdSyncTiming.record(sdLastSyncMicros);
   if (sdLastSyncMicros > sdMaxSyncMicros) sdMaxSyncMicros = sdLastSyncMicros;
   if (!confirmed) {
     markSDUnavailable("Log sync (unconfirmed rows)");
@@ -806,24 +887,90 @@ bool syncLogSegment() {
   return true;
 }
 
+void serviceCANBetweenFileOperations() {
+  for (unsigned int pass = 0; pass < 8; ++pass) {
+    if ((!loggingEnabled && !drainingStoppedFrames) || logQueue.size() >= BUFFER_SIZE) break;
+    noInterrupts();
+    const bool available = CAN.available() > 0;
+    interrupts();
+    if (!available) break;
+    logCAN();
+  }
+}
+
 bool finishLogSegment() {
   if (!syncLogSegment()) return false;
+  serviceCANBetweenFileOperations();
   if (!checkSDCardPresent()) return false;
-  if (!dataFile.close()) {
+  const unsigned long closeStarted = micros();
+  const bool closed = dataFile.close();
+  sdCloseTiming.record(micros() - closeStarted);
+  if (!closed) {
     markSDUnavailable("Segment close");
     return false;
   }
+  serviceCANBetweenFileOperations();
   return true;
 }
+
+bool logNameConflict(const String &base, bool &conflict) {
+  const char *extensions[] = {".csv", ".bin"};
+  conflict = false;
+  for (const char *extension : extensions) {
+    if (!checkSDCardPresent() || !sdReady) return false;
+    const unsigned long started = micros();
+    const bool exists = sd.exists((base + extension).c_str());
+    sdNameCheckTiming.record(micros() - started);
+    serviceCANBetweenFileOperations();
+    if (!checkSDCardPresent() || !sdReady) return false;
+    if (sd.sdErrorCode()) {
+      markSDUnavailable("Log filename check");
+      return false;
+    }
+    if (exists) {
+      conflict = true;
+      return true;
+    }
+  }
+  return true;
+}
+
+struct LogFileOperations {
+  String requestedBase;
+
+  void selectName(uint32_t suffix) {
+    segmentBase = requestedBase;
+    if (suffix) segmentBase += "_" + String(suffix);
+  }
+
+  bool nameConflict(bool &conflict) {
+    return logNameConflict(segmentBase, conflict);
+  }
+
+  bool openExclusive() {
+    if (!checkSDCardPresent() || !sdReady) return false;
+    const char *extension = logFormat == LogFormat::Binary ? ".bin" : ".csv";
+    if (!dataFile.open((segmentBase + extension).c_str(), O_WRONLY | O_CREAT | O_EXCL)) {
+      markSDUnavailable("Log file open (collision or SD error)");
+      return false;
+    }
+    return true;
+  }
+
+  void namesExhausted() {
+    markSDUnavailable("Log filename suffix exhausted");
+  }
+};
 
 void flushBufferToSD() {
   if (!checkSDCardPresent() || !sdReady || savvyCAN) {
     return;
   }
-  if (bufferIndex == 0 && sdPendingMessages == 0) {
+  if (bufferIndex == 0 && sdPendingMessages == 0 && (!loggingEnabled || dataFile.isOpen())) {
     return;
   }
   if (!dataFile.isOpen()) {
+    const unsigned long openStarted = micros();
     segmentBase = String(fileCount) + "_" + String(fileNum);
     RTCTime logTime;
     if (RTC.isRunning() && RTC.getTime(logTime)) {
@@ -844,51 +991,75 @@ void flushBufferToSD() {
         segmentBase += timestamp;
       }
     }
-    const String requestedBase = segmentBase;
-    unsigned int suffix = 0;
-    while (sd.exists((segmentBase + ".part").c_str()) || sd.exists((segmentBase + ".idx").c_str()) ||
-        sd.exists((segmentBase + ".csv").c_str())) {
-      segmentBase = requestedBase + "_" + String(++suffix);
-    }
-    if (!dataFile.open((segmentBase + ".csv").c_str(), O_WRONLY | O_CREAT | O_EXCL)) {
-      markSDUnavailable("Log file open");
-      return;
-    }
+    LogFileOperations operations = {segmentBase};
+    const bool opened = LogFileCreation::create(operations, nextSegmentIsRollover);
+    sdOpenTiming.record(micros() - openStarted);
+    if (!opened) return;
+    nextSegmentIsRollover = false;
+    serviceCANBetweenFileOperations();
+    if (!checkSDCardPresent() || !sdReady) return;
     sdSyncedBytes = 0;
     segmentStartedMillis = millis();
     const char *header = "Time Stamp,ID,Extended,Dir,Bus,LEN,D1,D2,D3,D4,D5,D6,D7,D8";
-    if (dataFile.println(header) != strlen(header) + 2 || !syncLogSegment()) {
+    const unsigned long headerStarted = micros();
+    const bool headerWritten = logFormat == LogFormat::Binary ?
+        dataFile.write(BinaryLog::Header, BinaryLog::HeaderSize) == BinaryLog::HeaderSize :
+        dataFile.println(header) == strlen(header) + 2;
+    sdHeaderTiming.record(micros() - headerStarted);
+    if (!headerWritten || dataFile.getWriteError()) {
       if (sdReady) markSDUnavailable("Segment header");
       return;
     }
+    serviceCANBetweenFileOperations();
+    if (!syncLogSegment()) return;
+    serviceCANBetweenFileOperations();
   }
-  // Flush buffer to the SD card
-  for (unsigned int written = 0; written < 8 && logQueue.size(); ++written) {
+  if (logQueue.size()) {
     if (!checkSDCardPresent()) return;
-    const LoggedFrame &frame = logQueue.front();
-    char line[MSG_LENGTH];
-    if (!formatLogRecord(line, sizeof(line), frame.timestampMillis, frame.identifier,
-        frame.extended, frame.length, frame.data)) {
+    const unsigned long formatStarted = micros();
+    const CsvBatch batch = logFormat == LogFormat::Binary ?
+        BinaryLog::prepare(logQueue, csvBatchBuffer, sizeof(csvBatchBuffer),
+            dataFile.curPosition(), millis() - segmentStartedMillis, 24) :
+        prepareCsvBatch(logQueue, csvBatchBuffer, sizeof(csvBatchBuffer),
+            dataFile.curPosition(), millis() - segmentStartedMillis, 8);
+    csvFormatTiming.record(micros() - formatStarted);
+    if (!batch.rows && batch.stop == BatchStop::Invalid) {
       ++sdDroppedMessages;
       logQueue.pop();
       bufferIndex = logQueue.size();
-      continue;
-    }
-    if (LogPolicy::needsRotation(dataFile.curPosition(), strlen(line) + 2,
-        millis() - segmentStartedMillis)) {
-      if (finishLogSegment()) ++fileNum;
+    } else if (!batch.rows && batch.stop == BatchStop::Rotate) {
+      if (finishLogSegment()) {
+        ++fileNum;
+        nextSegmentIsRollover = loggingEnabled;
+      }
       return;
-    }
-    ++sdPendingMessages;
-    if (dataFile.println(line) != strlen(line) + 2 || dataFile.getWriteError()) {
-      logQueue.pop();
+    } else if (!batch.rows && batch.stop == BatchStop::NoSpace) {
+      markSDUnavailable("Log batch buffer too small");
+      return;
+    } else if (batch.rows) {
+      if (millis() - segmentStartedMillis >= LogPolicy::SegmentMillis) {
+        if (finishLogSegment()) {
+          ++fileNum;
+          nextSegmentIsRollover = loggingEnabled;
+        }
+        return;
+      }
+      sdPendingMessages += batch.rows;
+      const unsigned long writeStarted = micros();
+      const size_t bytesWritten = dataFile.write(csvBatchBuffer, batch.bytes);
+      sdLastWriteMicros = micros() - writeStarted;
+      sdWriteTiming.record(sdLastWriteMicros);
+      if (sdLastWriteMicros > sdMaxWriteMicros) sdMaxWriteMicros = sdLastWriteMicros;
+      if (sdLastWriteMicros >= 1000 && sdWritesAtLeast1ms != UINT32_MAX) ++sdWritesAtLeast1ms;
+      if (sdLastWriteMicros >= 10000 && sdWritesAtLeast10ms != UINT32_MAX) ++sdWritesAtLeast10ms;
+      removeAttemptedBatch(logQueue, batch.rows);
       bufferIndex = logQueue.size();
-      markSDUnavailable("Log write (unconfirmed rows)");
-      return;
+      if (bytesWritten != batch.bytes || dataFile.getWriteError()) {
+        markSDUnavailable("Log write (unconfirmed rows)");
+        return;
+      }
+      logCAN();
     }
-    logQueue.pop();
-    bufferIndex = logQueue.size();
-    logCAN();
   }
   if (sdPendingMessages && millis() - sdLastSyncMillis >= LogPolicy::SyncMillis) {
     if (!syncLogSegment()) return;
