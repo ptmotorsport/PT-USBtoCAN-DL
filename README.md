@@ -14,6 +14,87 @@ Thank you for your support! We greatly appreciate you spreading the word about o
 
 Thank you to Tessa who started this project in both hardware and firmware while she was interning at PT Motorsport Au
 
+## ADC and RPM logging test firmware
+
+The default PlatformIO environment, `uno_r4_minima_adc`, is a dedicated ADC/tach
+test. It replaces the normal CAN logger in the flashed firmware: CAN logging,
+SLCAN, the normal CLI, RTC and VBATT status are not active. To build the
+original CAN firmware instead, select `uno_r4_minima` explicitly.
+
+Insert an SD card before powering on. The test samples **P002 / AN002 / A3** at
+a nominal **10,000 samples per second**, using the RA4M1 ADC's native 14-bit
+resolution and AVCC reference. The raw counts range from 0 to 16383; no voltage
+scaling is applied. Observe the board's input voltage limits.
+
+The conditioned tach square wave is connected to **P106 / D6 / GTIOC0B**.
+GPT0 captures **falling edges** in hardware with a 3 MHz counter (PCLKD / 16)
+and the PCLKD / 64 input noise filter, following the input-capture approach in
+[PT-IO-Mini2](https://github.com/ptmotorsport/PT-IO-Mini2).
+The pin is an input, not a PWM output, and has no internal pull-up. It replaces
+Button 1 in this test firmware; do not operate Button 1 during tach capture.
+Button 2 on P107 remains available for stopping capture.
+
+RPM uses **one pulse per revolution** and the period between successive falling
+edges. The latest period is included alongside each 10 kHz ADC reading; RPM
+is updated per tach pulse, not measured afresh at 10 kHz. A **300 ms no-pulse
+timeout** sets RPM to zero. Two edges are required after startup or timeout
+before RPM becomes valid. This timeout means signals at or below approximately
+200 RPM cannot be tracked continuously. Settings are in
+[include/tach_period.h](include/tach_period.h).
+GPT0 is reserved before selecting the independent ADC sample timer. Capture
+and ADC interrupts share a priority so their period state is read consistently.
+
+Each power-up creates the first available `ADC0000.BIN` through `ADC9999.BIN`
+without overwriting an existing file. Hold **button 2** for one second to stop,
+drain, sync and close the file before removing the card. Restart the device for
+a new capture.
+
+Convert a capture using Python 3 (no additional packages required):
+
+```powershell
+python scripts\adc_binary_to_csv.py ADC0000.BIN ADC0000.csv
+```
+
+New captures convert to `Time,MAP,RPM`, extending the supplied UltraLog example.
+`Time`
+is elapsed microseconds starting at zero, increasing by 100 for each sample;
+`MAP` is the unscaled ADC count and `RPM` is engine speed, formatted to three
+decimal places. Times are reconstructed from the nominal rate,
+not individually measured timestamps. The converter refuses to overwrite an
+existing CSV and rejects unsupported headers, incomplete samples and values
+outside the 14-bit range.
+
+New files use binary version 2: a 20-byte header (`PTADC`, version 2, resolution
+14, reserved zero, then little-endian uint32 values for sample rate 10,000,
+tach counter frequency 3,000,000 and pulses per revolution 1). Each six-byte
+record contains a little-endian uint16 ADC count and uint32 tach period in
+counter ticks (zero means no valid RPM). The converter calculates
+`RPM = 60 * 3000000 / period_ticks`. It also continues to read version 1
+ADC-only files, outputting their original `Time,MAP` columns.
+There is no end marker, so a truncated file ending on a sample boundary cannot
+be detected by the converter.
+
+The test buffers up to 2047 combined samples while SD writes and periodic
+one-second syncs run (about 204.7 ms of samples, with 60 kB/s record data).
+An ADC error, full buffer or detected
+timer interval outside 50–150 microseconds
+stops capture instead of silently continuing across a gap. SD errors or card
+removal also stop capture; the final rows may be incomplete. The SD and
+recording LEDs turn red on an error, and USB serial at 115200 baud reports the
+reason and number of rows written. After a normal stop the recording LED is
+white. Power loss or removing the card before stopping can lose unsynced data.
+
+Timing and sustained recording depend on the hardware and SD card; timer
+interrupts, SD stalls and actual sample quality should be verified on the
+target device. Use a known square-wave frequency to verify RPM (100 Hz should
+read 6000 RPM), and check the 300 ms zero-RPM timeout. Multiple tach edges while
+capture interrupts are blocked can overwrite the hardware capture register.
+The interval check cannot prove that every missed interrupt is
+detected if interrupts are blocked long enough to affect the system clock.
+
+The documentation below describes the original CAN firmware unless stated
+otherwise.
+
 
 ## Digital Pin Assignments
 
